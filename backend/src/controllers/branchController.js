@@ -19,10 +19,10 @@ exports.getAll = async (req, res) => {
 exports.create = async (req, res) => {
   if (process.env.DEMO_MODE === 'true') return res.json({ message: 'Created (Demo)', data: { id: 99, ...req.body } });
   try {
-    const { name, address, phone } = req.body;
+    const { name, code, address, phone } = req.body;
     const result = await db.pool.query(
-      'INSERT INTO branches (name, address, phone) VALUES ($1, $2, $3) RETURNING *',
-      [name, address, phone]
+      'INSERT INTO branches (name, code, address, phone) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, code, address, phone]
     );
     res.json({ message: 'Cabang berhasil ditambahkan', data: result.rows[0] });
   } catch (err) {
@@ -33,8 +33,8 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   if (process.env.DEMO_MODE === 'true') return res.json({ message: 'Updated (Demo)' });
   try {
-    const { name, address, phone } = req.body;
-    await db.pool.query('UPDATE branches SET name=$1, address=$2, phone=$3 WHERE id=$4', [name, address, phone, req.params.id]);
+    const { name, code, address, phone } = req.body;
+    await db.pool.query('UPDATE branches SET name=$1, code=$2, address=$3, phone=$4 WHERE id=$5', [name, code, address, phone, req.params.id]);
     res.json({ message: 'Cabang diperbarui' });
   } catch (err) {
     res.status(500).json({ message: 'Error', error: err.message });
