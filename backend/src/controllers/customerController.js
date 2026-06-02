@@ -96,9 +96,11 @@ exports.create = async (req, res) => {
   try {
     const { name, whatsapp, address, branch_id } = req.body;
     const voucher_code = name.substring(0, 3).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+    // 10-digit numeric barcode code
+    const barcode_code = String(Math.floor(1000000000 + Math.random() * 9000000000));
     const result = await db.pool.query(
-      'INSERT INTO customers (name, whatsapp, address, voucher_code, branch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name, whatsapp, address, voucher_code, branch_id]
+      'INSERT INTO customers (name, whatsapp, address, voucher_code, barcode_code, branch_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name, whatsapp, address, voucher_code, barcode_code, branch_id]
     );
     res.json({ message: 'Pelanggan berhasil ditambahkan', data: result.rows[0] });
   } catch (err) {

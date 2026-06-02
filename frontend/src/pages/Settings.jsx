@@ -260,7 +260,7 @@ export default function Settings() {
                
                <div className="space-y-3">
                   <button 
-                    onClick={() => window.open('/courier', '_blank')}
+                    onClick={() => window.open('/courier-app', '_blank')}
                     className="w-full p-5 rounded-[2rem] bg-cyan-50 hover:bg-cyan-100 border border-cyan-100 flex items-center justify-between group transition-all"
                   >
                      <div className="flex items-center gap-4">
@@ -269,14 +269,14 @@ export default function Settings() {
                         </div>
                         <div className="text-left">
                            <p className="text-sm font-black text-cyan-900 leading-none">Portal Kurir</p>
-                           <p className="text-[10px] font-black text-cyan-600/60 uppercase tracking-widest mt-1">Buka Aplikasi PWA</p>
+                           <p className="text-[10px] font-black text-cyan-600/60 uppercase tracking-widest mt-1">/courier-app</p>
                         </div>
                      </div>
                      <Plus size={20} className="text-cyan-500 group-hover:rotate-45 transition-transform" />
                   </button>
 
                   <button 
-                    onClick={() => window.open('/customer', '_blank')}
+                    onClick={() => window.open('/portal', '_blank')}
                     className="w-full p-5 rounded-[2rem] bg-blue-50 hover:bg-blue-100 border border-blue-100 flex items-center justify-between group transition-all"
                   >
                      <div className="flex items-center gap-4">
@@ -285,7 +285,7 @@ export default function Settings() {
                         </div>
                         <div className="text-left">
                            <p className="text-sm font-black text-blue-900 leading-none">Portal Pelanggan</p>
-                           <p className="text-[10px] font-black text-blue-600/60 uppercase tracking-widest mt-1">Akses Layanan Mandiri</p>
+                           <p className="text-[10px] font-black text-blue-600/60 uppercase tracking-widest mt-1">/portal</p>
                         </div>
                      </div>
                      <Plus size={20} className="text-blue-500 group-hover:rotate-45 transition-transform" />

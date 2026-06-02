@@ -38,11 +38,12 @@ import DebtTracker     from './pages/DebtTracker';
 import CustomerPortal  from './pages/CustomerPortal';
 import IPhoneDemo      from './pages/IPhoneDemo';
 
-const PrivateRoute = ({ children, adminOnly = false }) => {
+const PrivateRoute = ({ children, adminOnly = false, superAdminOnly = false }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary-500" /></div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/dashboard" replace />;
+  if (superAdminOnly && user.role !== 'superadmin') return <Navigate to="/dashboard" replace />;
+  if (adminOnly && user.role !== 'admin' && user.role !== 'superadmin') return <Navigate to="/dashboard" replace />;
   return children;
 };
 
@@ -80,7 +81,7 @@ const AppRoutes = () => {
         <Route path="reports/salary"     element={<PrivateRoute adminOnly><SalaryReport /></PrivateRoute>} />
         <Route path="reports/cashflow"   element={<PrivateRoute adminOnly><CashFlowReport /></PrivateRoute>} />
         <Route path="reports/debt"       element={<PrivateRoute adminOnly><DebtReport /></PrivateRoute>} />
-        <Route path="reports/profit-loss"element={<PrivateRoute adminOnly><ProfitLoss /></PrivateRoute>} />
+        <Route path="reports/profit-loss"element={<PrivateRoute superAdminOnly><ProfitLoss /></PrivateRoute>} />
         <Route path="analytics"          element={<PrivateRoute adminOnly><Analytics /></PrivateRoute>} />
         <Route path="maps"               element={<PrivateRoute adminOnly><Maps /></PrivateRoute>} />
         <Route path="health"             element={<PrivateRoute adminOnly><AssetHealth /></PrivateRoute>} />

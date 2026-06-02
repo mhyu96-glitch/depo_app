@@ -5,10 +5,11 @@ import {
   Users, Search, Plus, Filter, 
   Phone, MapPin, Gift, Trash2, Edit2, 
   Loader2, X, AlertCircle, Sparkles,
-  UserPlus
+  UserPlus, QrCode
 } from 'lucide-react';
 import { TableSkeleton } from '../components/Skeleton';
 import AddCustomerModal from '../components/AddCustomerModal';
+import { BarcodeModal } from '../components/CustomerBarcode';
 
 export default function Customers() {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [barcodeCustomer, setBarcodeCustomer] = useState(null);
 
   const loadCustomers = async () => {
     setLoading(true);
@@ -105,6 +107,9 @@ export default function Customers() {
           {customers.map((cust) => (
             <div key={cust.id} className="bg-white dark:bg-gray-900 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm hover:border-primary-200 transition-all group relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                 <button onClick={() => setBarcodeCustomer(cust)} className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center hover:bg-amber-100 transition-all" title="Lihat Barcode">
+                    <QrCode size={14} />
+                 </button>
                  <button onClick={() => handleEdit(cust)} className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center hover:bg-primary-100 transition-all">
                     <Edit2 size={14} />
                  </button>
@@ -129,9 +134,12 @@ export default function Customers() {
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] font-bold text-primary-500 mt-1 flex items-center gap-1.5 uppercase tracking-widest">
-                    <Sparkles size={10} /> {cust.voucher_code || 'No Voucher'}
-                  </p>
+                  <button 
+                    onClick={() => setBarcodeCustomer(cust)}
+                    className="text-[10px] font-bold text-primary-500 mt-1 flex items-center gap-1.5 uppercase tracking-widest hover:text-primary-700 transition-colors"
+                  >
+                    <QrCode size={10} /> {cust.voucher_code || 'No Voucher'}
+                  </button>
                 </div>
               </div>
 
@@ -171,6 +179,11 @@ export default function Customers() {
         initialData={selectedCustomer}
         branchId={user?.branch_id}
       />
+
+      {/* Barcode Modal */}
+      {barcodeCustomer && (
+        <BarcodeModal customer={barcodeCustomer} onClose={() => setBarcodeCustomer(null)} />
+      )}
     </div>
   );
 }

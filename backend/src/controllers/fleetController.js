@@ -16,14 +16,13 @@ exports.getAllVehicles = async (req, res) => {
 
 exports.createVehicle = async (req, res) => {
   try {
-    const { branch_id, plate, model, status } = req.body;
+    const { branch_id, plate, model, status, owner_name, owner_phone } = req.body;
     const result = await db.pool.query(
-      `INSERT INTO fleet_vehicles (branch_id, plate, model, status)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [branch_id || 1, plate, model, status || 'ready']
+      `INSERT INTO fleet_vehicles (branch_id, plate, model, status, owner_name, owner_phone)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [branch_id || 1, plate, model, status || 'ready', owner_name || null, owner_phone || null]
     );
     
-    // Fetch branch name to match frontend expected structure
     const joined = await db.pool.query(
       `SELECT v.*, b.name as branch_name 
        FROM fleet_vehicles v

@@ -22,7 +22,7 @@ export default function Fleet() {
   const [showVModal, setShowVModal] = useState(false);
   const [showMModal, setShowMModal] = useState(false);
   
-  const [vForm, setVForm] = useState({ plate: '', brand: '', branch_name: '' });
+  const [vForm, setVForm] = useState({ plate: '', brand: '', branch_name: '', owner_name: '', owner_phone: '' });
   const [mForm, setMForm] = useState({ plate: '', description: '', cost: '' });
 
   const loadData = async () => {
@@ -46,7 +46,7 @@ export default function Fleet() {
     e.preventDefault();
     try {
       await fleetApi.createVehicle(vForm);
-      setVForm({ plate: '', brand: '', branch_name: '' });
+      setVForm({ plate: '', brand: '', branch_name: '', owner_name: '', owner_phone: '' });
       setShowVModal(false);
       loadData();
     } catch (_) {}
@@ -142,6 +142,13 @@ export default function Fleet() {
                            {v.branch_name || 'Tidak Ada Cabang'}
                         </div>
                       </div>
+                      {v.owner_name && (
+                        <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-gray-500">
+                          <MI name="person" size={13} className="text-amber-500" />
+                          <span>{v.owner_name}</span>
+                          {v.owner_phone && <span className="text-gray-400">· {v.owner_phone}</span>}
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-auto relative z-10">
@@ -243,6 +250,20 @@ export default function Fleet() {
                   onChange={val => setVForm({...vForm, branch_name: val})}
                   placeholder="-- Pilih Cabang --"
                 />
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Nama Pemilik Armada</label>
+                   <input 
+                     value={vForm.owner_name} onChange={e => setVForm({...vForm, owner_name: e.target.value})}
+                     placeholder="Nama pemilik kendaraan" className="input w-full font-bold py-4 px-5" 
+                   />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">No. HP Pemilik</label>
+                   <input 
+                     value={vForm.owner_phone} onChange={e => setVForm({...vForm, owner_phone: e.target.value})}
+                     placeholder="0812..." className="input w-full font-bold py-4 px-5" 
+                   />
+                </div>
                 <div className="pt-4">
                   <button type="submit" className="w-full py-4 rounded-3xl bg-primary-500 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-primary-500/30 hover:scale-[1.02] transition-transform">
                      SIMPAN UNIT

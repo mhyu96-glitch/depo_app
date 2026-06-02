@@ -39,7 +39,7 @@ const NavGroup = ({ icon, label, children, collapsed, color }) => {
 };
 
 export default function Sidebar({ open, onClose, collapsed }) {
-  const { isAdmin, logout, user } = useAuth();
+  const { isAdmin, isSuperAdmin, logout, user } = useAuth();
   const { brandName } = useTheme();
   const navigate = useNavigate();
 
@@ -117,7 +117,9 @@ export default function Sidebar({ open, onClose, collapsed }) {
               <NavItem to="/reports/salary"      icon="payments" label="Gaji Kurir" color="text-rose-500" onClick={onClose} />
               <NavItem to="/reports/cashflow"    icon="swap_horiz" label="Arus Kas" color="text-blue-500" onClick={onClose} />
               <NavItem to="/reports/debt"        icon="error_outline" label="Hutang" color="text-red-500" onClick={onClose} />
-              <NavItem to="/reports/profit-loss" icon="analytics" label="Laba Rugi" color="text-indigo-500" onClick={onClose} />
+              {isSuperAdmin && (
+                <NavItem to="/reports/profit-loss" icon="analytics" label="Laba Rugi" color="text-indigo-500" onClick={onClose} />
+              )}
             </NavGroup>
 
             <NavItem to="/settings" icon="settings" label="Pengaturan" color="text-gray-500" onClick={onClose} collapsed={collapsed} />
