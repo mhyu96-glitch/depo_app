@@ -22,23 +22,49 @@ export default function Login() {
   const [error, setError]     = useState('');
   const [showBranch, setShowBranch] = useState(false);
   const [branches, setBranches] = useState([]);
+  const [branchLoading, setBranchLoading] = useState(true);
 
-  // Load daftar cabang dari API saat halaman dibuka
+  // Load daftar cabang dari API - dengan fallback ke cache localStorage
   useEffect(() => {
-    // Tambah timestamp untuk bypass cache PWA/browser
+    const CACHE_KEY = 'cached_branches';
+    
+    // Tampilkan cache dulu agar tidak blank
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const list = JSON.parse(cached);
+        if (list.length > 0) {
+          setBranches(list);
+          setForm(f => ({ ...f, branch: f.branch || list[0].name }));
+        }
+      } catch (_) {}
+    }
+
+    // Fetch fresh dari API
     const apiUrl = (import.meta.env.VITE_API_URL || '/api') + '/branches?_t=' + Date.now();
-    fetch(apiUrl, { cache: 'no-store' })
-      .then(r => r.json())
+    fetch(apiUrl, { 
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }
+    })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(res => {
         const list = res.data || [];
-        setBranches(list);
-        if (list.length > 0) setForm(f => ({ ...f, branch: list[0].name }));
+        if (list.length > 0) {
+          setBranches(list);
+          setForm(f => ({ ...f, branch: f.branch || list[0].name }));
+          // Simpan ke cache untuk kunjungan berikutnya
+          localStorage.setItem(CACHE_KEY, JSON.stringify(list));
+        }
       })
       .catch(() => {
-        // Fallback jika fetch gagal
-        setBranches([{ id: 1, name: 'Depo Pusat' }]);
-        setForm(f => ({ ...f, branch: 'Depo Pusat' }));
-      });
+        // Gunakan cache yang sudah di-set di atas, atau fallback minimal
+        if (!cached) {
+          const fallback = [{ id: 1, name: 'Depo Pusat' }];
+          setBranches(fallback);
+          setForm(f => ({ ...f, branch: 'Depo Pusat' }));
+        }
+      })
+      .finally(() => setBranchLoading(false));
   }, []);
 
   const handleSubmit = async (e) => {
@@ -109,9 +135,11 @@ export default function Login() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-lg shadow-primary-500/30">
-                        <MapPin size={14} />
+                        {branchLoading ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
                       </div>
-                      <span className="text-white font-black text-xs uppercase tracking-widest">{form.branch}</span>
+                      <span className="text-white font-black text-xs uppercase tracking-widest">
+                        {form.branch || (branchLoading ? 'Memuat cabang...' : 'Pilih Cabang')}
+                      </span>
                     </div>
                     <ChevronDown size={18} className={`text-white/30 transition-transform duration-300 ${showBranch ? 'rotate-180' : ''}`} />
                   </motion.div>
