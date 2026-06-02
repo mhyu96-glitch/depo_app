@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { branchApi } from '../api';
 import { 
   Droplets, Eye, EyeOff, Loader2, MapPin, 
   ChevronDown, User, Lock 
@@ -26,17 +25,19 @@ export default function Login() {
 
   // Load daftar cabang dari API saat halaman dibuka
   useEffect(() => {
-    branchApi.getAll()
+    // Tambah timestamp untuk bypass cache PWA/browser
+    const apiUrl = (import.meta.env.VITE_API_URL || '/api') + '/branches?_t=' + Date.now();
+    fetch(apiUrl, { cache: 'no-store' })
+      .then(r => r.json())
       .then(res => {
-        const list = res.data.data || [];
+        const list = res.data || [];
         setBranches(list);
         if (list.length > 0) setForm(f => ({ ...f, branch: list[0].name }));
       })
       .catch(() => {
-        // Fallback ke cabang default jika API gagal
-        const fallback = ['Depo Pusat'];
-        setBranches(fallback.map(n => ({ name: n })));
-        setForm(f => ({ ...f, branch: fallback[0] }));
+        // Fallback jika fetch gagal
+        setBranches([{ id: 1, name: 'Depo Pusat' }]);
+        setForm(f => ({ ...f, branch: 'Depo Pusat' }));
       });
   }, []);
 
