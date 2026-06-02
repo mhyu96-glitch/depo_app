@@ -231,6 +231,8 @@ export default function Login() {
                   placeholder="ID Pengguna"
                   value={form.username}
                   onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                  autoComplete="username"
+                  autoFocus
                   required
                 />
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary-400">
@@ -248,6 +250,7 @@ export default function Login() {
                   placeholder="••••••••"
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  autoComplete="current-password"
                   required
                 />
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary-400">
