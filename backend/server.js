@@ -21,7 +21,8 @@ app.use(cors({
       allowedOrigins.indexOf(origin) !== -1 || 
       origin.startsWith('http://localhost:') ||
       origin.endsWith('.pages.dev') ||
-      origin.endsWith('.workers.dev')
+      origin.endsWith('.workers.dev') ||
+      origin.includes('depo178.site')
     ) {
       callback(null, true);
     } else {
