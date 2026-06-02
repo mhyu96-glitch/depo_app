@@ -59,12 +59,8 @@ exports.login = async (req, res) => {
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
-    // Update last_login - tidak blocking jika gagal
-    try {
-      await db.pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
-    } catch (updateErr) {
-      console.warn('Failed to update last_login:', updateErr.message);
-    }
+    // SKIP UPDATE last_login - column may not exist in production
+    // Update last_login sudah tidak diperlukan untuk login berhasil
 
     res.json({
       message: 'Login berhasil',
