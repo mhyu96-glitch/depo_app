@@ -5,6 +5,7 @@ require('dotenv').config();
 
 const app = express();
 
+// CORS Configuration - More permissive for production
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'http://localhost:5174',
@@ -12,27 +13,56 @@ const allowedOrigins = [
   'http://127.0.0.1:5174',
   'https://depo-app.pages.dev',
   'https://depo178.site',
+  'http://depo178.site',
 ];
 
 app.use(cors({ 
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
+    
+    // Check if origin is allowed
     if (
       allowedOrigins.indexOf(origin) !== -1 || 
       origin.startsWith('http://localhost:') ||
+      origin.startsWith('https://localhost:') ||
       origin.endsWith('.pages.dev') ||
       origin.endsWith('.workers.dev') ||
       origin.includes('depo178.site') ||
+      origin.includes('depo-app') ||
       origin.includes('vercel.app')
     ) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      console.warn('CORS blocked origin:', origin);
+      callback(null, true); // Allow anyway for now (permissive mode)
     }
   }, 
-  credentials: true 
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
 }));
+
+// Additional CORS headers for preflight
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  }
+  
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  
+  next();
+});
+
 app.use(express.json());
 app.use(morgan('dev'));
 
