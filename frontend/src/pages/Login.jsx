@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { branchApi } from '../api';
 import { 
   Droplets, Eye, EyeOff, Loader2, MapPin, 
   ChevronDown, User, Lock 
@@ -16,13 +17,28 @@ const MI = ({ name, className = '', size = 20 }) => (
 export default function Login() {
   const { login } = useAuth();
   const navigate   = useNavigate();
-  const [form, setForm]       = useState({ username: '', password: '', branch: 'Depo Pusat' });
+  const [form, setForm]       = useState({ username: '', password: '', branch: '' });
   const [showPw, setShowPw]   = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
   const [showBranch, setShowBranch] = useState(false);
+  const [branches, setBranches] = useState([]);
 
-  const branches = ['Depo Pusat', 'Cabang Sudirman', 'Cabang Melati'];
+  // Load daftar cabang dari API saat halaman dibuka
+  useEffect(() => {
+    branchApi.getAll()
+      .then(res => {
+        const list = res.data.data || [];
+        setBranches(list);
+        if (list.length > 0) setForm(f => ({ ...f, branch: list[0].name }));
+      })
+      .catch(() => {
+        // Fallback ke cabang default jika API gagal
+        const fallback = ['Depo Pusat'];
+        setBranches(fallback.map(n => ({ name: n })));
+        setForm(f => ({ ...f, branch: fallback[0] }));
+      });
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -109,16 +125,16 @@ export default function Login() {
                       >
                         {branches.map(b => (
                           <motion.div
-                            key={b}
+                            key={b.id || b.name}
                             onClick={() => {
-                              setForm(f => ({ ...f, branch: b }));
+                              setForm(f => ({ ...f, branch: b.name }));
                               setShowBranch(false);
                             }}
-                            className={`p-4 rounded-2xl flex items-center gap-3 cursor-pointer transition-all mb-1 last:mb-0 ${form.branch === b ? 'bg-primary-500 text-white shadow-xl' : 'text-primary-200 hover:bg-white/5'}`}
+                            className={`p-4 rounded-2xl flex items-center gap-3 cursor-pointer transition-all mb-1 last:mb-0 ${form.branch === b.name ? 'bg-primary-500 text-white shadow-xl' : 'text-primary-200 hover:bg-white/5'}`}
                             whileHover={{ x: 5 }}
                           >
-                            <div className={`w-1.5 h-1.5 rounded-full ${form.branch === b ? 'bg-white' : 'bg-primary-500'}`} />
-                            <span className="text-xs font-black uppercase tracking-widest">{b}</span>
+                            <div className={`w-1.5 h-1.5 rounded-full ${form.branch === b.name ? 'bg-white' : 'bg-primary-500'}`} />
+                            <span className="text-xs font-black uppercase tracking-widest">{b.name}</span>
                           </motion.div>
                         ))}
                       </motion.div>
