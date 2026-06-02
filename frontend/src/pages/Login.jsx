@@ -34,8 +34,9 @@ export default function Login() {
       if (cached) {
         const list = JSON.parse(cached);
         if (Array.isArray(list) && list.length > 0) {
+          console.log('Loaded branches from cache:', list);
           setBranches(list);
-          // TIDAK AUTO SELECT - biarkan user pilih sendiri atau kosongkan (otomatis dari database)
+          setBranchesLoading(false);
         }
       }
     } catch (e) {
@@ -45,11 +46,18 @@ export default function Login() {
     // Fetch branches dari backend (public route)
     const fetchBranches = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/branches`, { 
+        const apiUrl = import.meta.env.VITE_API_URL || '/api';
+        console.log('Fetching branches from:', `${apiUrl}/branches`);
+        
+        const res = await fetch(`${apiUrl}/branches`, { 
           method: 'GET',
-          cache: 'no-store',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
         });
+        
+        console.log('Branches API response status:', res.status, res.statusText);
         
         if (!res.ok) {
           console.error('Failed to fetch branches:', res.status, res.statusText);
@@ -58,16 +66,22 @@ export default function Login() {
         }
 
         const data = await res.json();
+        console.log('Branches API response data:', data);
+        
         const list = data?.data || [];
         
         if (Array.isArray(list) && list.length > 0) {
-          console.log('Branches loaded:', list);
+          console.log('Branches loaded successfully:', list);
           setBranches(list);
-          // TIDAK AUTO SELECT - biarkan user pilih sendiri atau kosongkan (otomatis dari database)
           localStorage.setItem(CACHE_KEY, JSON.stringify(list));
+        } else {
+          console.warn('No branches returned from API');
+          setBranches([]);
         }
       } catch (err) {
         console.error('Error fetching branches:', err);
+        // Fallback: gunakan cache atau empty array
+        setBranches([]);
       } finally {
         setBranchesLoading(false);
       }
@@ -148,7 +162,9 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Custom Pill Branch Selector */}
             <div className="form-group relative z-[50]">
-               <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest mb-3 block">Lokasi Cabang (Opsional)</label>
+               <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest mb-3 block">
+                 Lokasi Cabang (Opsional - Kosongkan jika tidak yakin)
+               </label>
                <div className="relative">
                   <motion.div 
                     onClick={() => setShowBranch(!showBranch)}
@@ -160,7 +176,7 @@ export default function Login() {
                         <MapPin size={14} />
                       </div>
                       <span className="text-white font-black text-xs uppercase tracking-widest">
-                        {form.branch || 'Pilih Cabang (Opsional)'}
+                        {form.branch || 'Login Otomatis ke Cabang Anda'}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-white/30 transition-transform duration-300 ${showBranch ? 'rotate-180' : ''}`} />
