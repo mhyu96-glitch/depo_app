@@ -65,6 +65,16 @@ export default function Fleet() {
   if (loading) return <div className="p-10 text-center font-black animate-pulse">MEMUAT DATA ARMADA...</div>;
 
   const readyCount = vehicles.filter(v => v.status === 'ready').length;
+  const maintenanceCount = vehicles.filter(v => v.status === 'maintenance').length;
+
+  // Kendaraan yang next_service-nya dalam 7 hari ke depan
+  const today = new Date();
+  const in7days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const scheduledCount = vehicles.filter(v => {
+    if (!v.next_service) return false;
+    const d = new Date(v.next_service);
+    return d >= today && d <= in7days;
+  }).length;
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-fade-in font-outfit pb-20">
@@ -104,14 +114,14 @@ export default function Fleet() {
          <div className="card p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white border-none shadow-xl shadow-orange-500/20 relative overflow-hidden group">
             <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform"><Wrench size={100} /></div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Dalam Perbaikan</p>
-            <h2 className="text-4xl font-black mt-2 tracking-tighter">{vehicles.length - readyCount} <span className="text-sm font-bold opacity-60">UNIT</span></h2>
+            <h2 className="text-4xl font-black mt-2 tracking-tighter">{maintenanceCount} <span className="text-sm font-bold opacity-60">UNIT</span></h2>
             <p className="text-[11px] font-bold mt-2 opacity-80 uppercase tracking-widest">SEDANG MASUK BENGKEL</p>
          </div>
          <div className="card p-6 bg-gradient-to-br from-primary-500 to-primary-600 text-white border-none shadow-xl shadow-primary-500/20 relative overflow-hidden group">
             <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform"><Calendar size={100} /></div>
             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Servis Terjadwal</p>
-            <h2 className="text-4xl font-black mt-2 tracking-tighter">2 <span className="text-sm font-bold opacity-60">UNIT</span></h2>
-            <p className="text-[11px] font-bold mt-2 opacity-80 uppercase tracking-widest">JADWAL MINGGU INI</p>
+            <h2 className="text-4xl font-black mt-2 tracking-tighter">{scheduledCount} <span className="text-sm font-bold opacity-60">UNIT</span></h2>
+            <p className="text-[11px] font-bold mt-2 opacity-80 uppercase tracking-widest">JADWAL 7 HARI KE DEPAN</p>
          </div>
       </div>
 
