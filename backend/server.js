@@ -47,6 +47,7 @@ app.use('/api/portal',       require('./src/routes/portal.routes')); // PUBLIC -
 app.use('/api/branches',     require('./src/routes/branches.routes'));
 app.use('/api/customers',    require('./src/routes/customers.routes'));
 app.use('/api/transactions', require('./src/routes/transactions.routes'));
+app.use('/api/approvals',    require('./src/routes/approvals.routes')); // NEW - Transaction approvals
 app.use('/api/attendance',   require('./src/routes/attendance.routes'));
 app.use('/api/cashflow',     require('./src/routes/cashflow.routes'));
 app.use('/api/couriers',     require('./src/routes/couriers.routes'));
