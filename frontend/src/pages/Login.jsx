@@ -22,48 +22,85 @@ export default function Login() {
   const [error, setError]     = useState('');
   const [showBranch, setShowBranch] = useState(false);
   const [branches, setBranches] = useState([]);
+  const [branchesLoading, setBranchesLoading] = useState(true);
 
-  // Load cabang dari cache localStorage (diisi saat user sudah login dan buka halaman Branches)
-  // Juga coba fetch di background tanpa block UI
+  // Load cabang dari API (tanpa authenticate)
   useEffect(() => {
     const CACHE_KEY = 'cached_branches';
 
-    // Pakai cache dulu - instant
+    // Pakai cache dulu - instant load
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const list = JSON.parse(cached);
-        if (list.length > 0) {
+        if (Array.isArray(list) && list.length > 0) {
           setBranches(list);
-          setForm(f => ({ ...f, branch: f.branch || list[0].name }));
+          if (!form.branch && list[0]?.name) {
+            setForm(f => ({ ...f, branch: list[0].name }));
+          }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      console.warn('Cache parse error:', e);
+    }
 
-    // Fetch di background - tidak blocking, tidak ada error state
-    fetch(`https://depo-app-five.vercel.app/api/branches?_t=${Date.now()}`, { 
-      cache: 'no-store', mode: 'cors'
-    })
-      .then(r => r.ok ? r.json() : null)
-      .then(res => {
-        const list = res?.data || [];
-        if (list.length > 0) {
+    // Fetch branches dari backend (public route)
+    const fetchBranches = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/branches`, { 
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!res.ok) {
+          console.error('Failed to fetch branches:', res.status, res.statusText);
+          setBranchesLoading(false);
+          return;
+        }
+
+        const data = await res.json();
+        const list = data?.data || [];
+        
+        if (Array.isArray(list) && list.length > 0) {
+          console.log('Branches loaded:', list);
           setBranches(list);
-          setForm(f => ({ ...f, branch: f.branch || list[0].name }));
+          if (!form.branch && list[0]?.name) {
+            setForm(f => ({ ...f, branch: list[0].name }));
+          }
           localStorage.setItem(CACHE_KEY, JSON.stringify(list));
         }
-      })
-      .catch(() => {}); // silent fail - pakai cache saja
+      } catch (err) {
+        console.error('Error fetching branches:', err);
+      } finally {
+        setBranchesLoading(false);
+      }
+    };
+
+    fetchBranches();
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    
+    if (!form.branch) {
+      setError('Pilih cabang terlebih dahulu');
+      return;
+    }
+    
+    console.log('Login attempt:', { 
+      username: form.username, 
+      branch: form.branch,
+      availableBranches: branches.map(b => b.name)
+    });
+    
     setLoading(true);
     try {
       await login(form.username, form.password, form.branch);
       navigate('/dashboard');
     } catch (err) {
+      console.error('Login error:', err.response?.data || err.message);
       setError(err.response?.data?.message || 'Akses Ditolak: Periksa kembali Username & Password Anda');
     } finally {
       setLoading(false);
@@ -140,32 +177,30 @@ export default function Login() {
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         className="absolute top-full left-0 right-0 bg-[#0f172a]/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-3 shadow-2xl z-[100] overflow-hidden"
                       >
-                        {branches.length > 0 ? branches.map(b => (
-                          <motion.div
-                            key={b.id || b.name}
-                            onClick={() => {
-                              setForm(f => ({ ...f, branch: b.name }));
-                              setShowBranch(false);
-                            }}
-                            className={`p-4 rounded-2xl flex items-center gap-3 cursor-pointer transition-all mb-1 last:mb-0 ${form.branch === b.name ? 'bg-primary-500 text-white shadow-xl' : 'text-primary-200 hover:bg-white/5'}`}
-                            whileHover={{ x: 5 }}
-                          >
-                            <div className={`w-1.5 h-1.5 rounded-full ${form.branch === b.name ? 'bg-white' : 'bg-primary-500'}`} />
-                            <span className="text-xs font-black uppercase tracking-widest">{b.name}</span>
-                          </motion.div>
-                        )) : (
-                          // Jika cabang belum load, beri opsi input manual
-                          <div className="p-4">
-                            <p className="text-[10px] text-primary-300 font-bold mb-3 uppercase tracking-widest">Ketik nama cabang:</p>
-                            <input
-                              type="text"
-                              className="w-full bg-white/5 border border-white/10 text-white rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-primary-500"
-                              placeholder="Nama cabang..."
-                              value={form.branch}
-                              onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
-                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setShowBranch(false); } }}
-                              autoFocus
-                            />
+                        {branchesLoading ? (
+                          <div className="p-4 text-center">
+                            <Loader2 className="animate-spin mx-auto mb-2 text-primary-400" size={20} />
+                            <p className="text-[10px] text-primary-300 font-bold uppercase tracking-widest">Memuat cabang...</p>
+                          </div>
+                        ) : branches.length > 0 ? (
+                          branches.map(b => (
+                            <motion.div
+                              key={b.id || b.name}
+                              onClick={() => {
+                                setForm(f => ({ ...f, branch: b.name }));
+                                setShowBranch(false);
+                              }}
+                              className={`p-4 rounded-2xl flex items-center gap-3 cursor-pointer transition-all mb-1 last:mb-0 ${form.branch === b.name ? 'bg-primary-500 text-white shadow-xl' : 'text-primary-200 hover:bg-white/5'}`}
+                              whileHover={{ x: 5 }}
+                            >
+                              <div className={`w-1.5 h-1.5 rounded-full ${form.branch === b.name ? 'bg-white' : 'bg-primary-500'}`} />
+                              <span className="text-xs font-black uppercase tracking-widest">{b.name}</span>
+                            </motion.div>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center">
+                            <p className="text-xs text-red-400 font-bold mb-3">Tidak ada cabang tersedia</p>
+                            <p className="text-[10px] text-primary-300 opacity-60">Hubungi administrator</p>
                           </div>
                         )}
                       </motion.div>

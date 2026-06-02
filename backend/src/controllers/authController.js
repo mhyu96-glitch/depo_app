@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 exports.login = async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, branch } = req.body;
 
   // DEMO MODE BYPASS
   if (process.env.DEMO_MODE === 'true') {
@@ -13,7 +13,8 @@ exports.login = async (req, res) => {
         name: username === 'admin' ? 'Demo Admin' : 'Demo Kasir',
         username,
         role: username === 'admin' ? 'admin' : 'kasir',
-        branch_id: 1
+        branch_id: 1,
+        branch_name: branch || 'Depo Pusat'
       };
       const token = jwt.sign(demoUser, process.env.JWT_SECRET, { expiresIn: '24h' });
       return res.json({ 
@@ -24,13 +25,32 @@ exports.login = async (req, res) => {
   }
 
   try {
-    const result = await db.pool.query('SELECT * FROM users WHERE username = $1 AND is_active = true', [username]);
+    // Join dengan tabel branches untuk validasi dan ambil nama cabang
+    const result = await db.pool.query(
+      `SELECT u.*, b.name as branch_name 
+       FROM users u 
+       LEFT JOIN branches b ON u.branch_id = b.id 
+       WHERE u.username = $1 AND u.is_active = true`, 
+      [username]
+    );
     const user = result.rows[0];
 
     if (!user) return res.status(401).json({ message: 'Username atau password salah' });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Username atau password salah' });
+
+    // Validasi cabang: jika user bukan superadmin dan memilih cabang, harus sesuai dengan cabang yang ditugaskan
+    if (user.role !== 'superadmin' && branch && user.branch_name) {
+      if (branch.toLowerCase().trim() !== user.branch_name.toLowerCase().trim()) {
+        return res.status(403).json({ 
+          message: `Anda hanya bisa login ke cabang "${user.branch_name}". Cabang yang Anda pilih: "${branch}"` 
+        });
+      }
+    }
+    
+    // Jika tidak ada branch dipilih atau user adalah superadmin, gunakan branch dari database
+    // Superadmin bisa pilih branch mana saja untuk sesi kerja mereka
 
     const token = jwt.sign(
       { id: user.id, role: user.role, branch_id: user.branch_id },
@@ -44,7 +64,14 @@ exports.login = async (req, res) => {
       message: 'Login berhasil',
       data: {
         token,
-        user: { id: user.id, name: user.name, username: user.username, role: user.role, branch_id: user.branch_id }
+        user: { 
+          id: user.id, 
+          name: user.name, 
+          username: user.username, 
+          role: user.role, 
+          branch_id: user.branch_id,
+          branch_name: user.branch_name
+        }
       }
     });
   } catch (err) {
