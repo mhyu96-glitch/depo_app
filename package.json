@@ -1,0 +1,15 @@
+{
+  "name": "depo-air-minum-app",
+  "version": "1.0.0",
+  "description": "Sistem Manajemen Depo Air Minum",
+  "scripts": {
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev": "npx concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "dev:brave": "npx concurrently \"npm run dev --prefix backend\" \"npm run dev:brave --prefix frontend\"",
+    "start-backend": "npm run dev --prefix backend",
+    "start-frontend": "npm run dev --prefix frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

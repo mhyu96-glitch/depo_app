@@ -1,0 +1,276 @@
+import { useState, useEffect } from 'react';
+import { userApi, branchApi } from '../api';
+import { 
+  UserCog, Plus, Edit2, Trash2, 
+  Loader2, X, Shield, Building2, 
+  User, Lock, CheckCircle, XCircle 
+} from 'lucide-react';
+
+import PillSelect from '../components/PillSelect';
+
+export default function Users() {
+  const [users, setUsers] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [form, setForm] = useState({
+    name: '',
+    username: '',
+    password: '',
+    role: 'kasir',
+    branch_id: '',
+    is_active: 1
+  });
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [userRes, branchRes] = await Promise.all([
+        userApi.getAll(),
+        branchApi.getAll()
+      ]);
+      setUsers(userRes.data.data);
+      setBranches(branchRes.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (selectedUser) {
+        await userApi.update(selectedUser.id, form);
+      } else {
+        await userApi.create(form);
+      }
+      setIsModalOpen(false);
+      resetForm();
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Terjadi kesalahan');
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedUser(null);
+    setForm({
+      name: '',
+      username: '',
+      password: '',
+      role: 'kasir',
+      branch_id: '',
+      is_active: 1
+    });
+  };
+
+  const handleEdit = (u) => {
+    setSelectedUser(u);
+    setForm({
+      name: u.name,
+      username: u.username,
+      password: '', // Password empty when editing unless changed
+      role: u.role,
+      branch_id: u.branch_id || '',
+      is_active: u.is_active
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Nonaktifkan pengguna ini?')) return;
+    try {
+      await userApi.remove(id);
+      loadData();
+    } catch (err) {
+      alert('Gagal menonaktifkan pengguna');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="page-header">
+        <div>
+          <h1 className="page-title flex items-center gap-2">
+            <UserCog size={24} className="text-primary-500" />
+            Manajemen Pengguna
+          </h1>
+          <p className="text-sm text-gray-500">Pengaturan akun admin dan kasir cabang</p>
+        </div>
+        <button 
+          onClick={() => { resetForm(); setIsModalOpen(true); }}
+          className="btn-primary"
+        >
+          <Plus size={18} /> Tambah Pengguna
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center p-12"><Loader2 size={32} className="animate-spin text-primary-500" /></div>
+      ) : (
+        <div className="table-wrapper card">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Nama & Role</th>
+                <th>Username</th>
+                <th>Cabang</th>
+                <th>Status</th>
+                <th>Dibuat</th>
+                <th className="text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${u.role === 'admin' ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-700'}`}>
+                        {(u.name?.[0] || '?').toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">{u.name}</p>
+                        <p className={`text-[10px] font-bold uppercase tracking-wider ${u.role === 'admin' ? 'text-primary-500' : 'text-gray-400'}`}>
+                          {u.role}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{u.username}</td>
+                  <td>
+                    <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                      <Building2 size={14} className="text-gray-400" />
+                      {u.branch_name || 'Semua Cabang'}
+                    </div>
+                  </td>
+                  <td>
+                    {u.is_active ? (
+                      <span className="badge-green"><CheckCircle size={10} /> Aktif</span>
+                    ) : (
+                      <span className="badge-red"><XCircle size={10} /> Nonaktif</span>
+                    )}
+                  </td>
+                  <td className="text-xs text-gray-500">
+                    {new Date(u.created_at).toLocaleDateString('id-ID')}
+                  </td>
+                  <td className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <button onClick={() => handleEdit(u)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-400 transition-colors">
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(u.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-gray-400 hover:text-red-500 transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Modal Form */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="card w-full max-w-lg animate-slide-in">
+            <div className="flex items-center justify-between p-6 border-b dark:border-gray-800">
+              <h2 className="text-xl font-bold">{selectedUser ? 'Edit Pengguna' : 'Tambah Pengguna Baru'}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+                <div className="md:col-span-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Nama Lengkap</label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-500" />
+                    <input 
+                      type="text" className="input w-full pl-12 py-4" required 
+                      value={form.name} onChange={e => setForm({...form, name: e.target.value})}
+                      placeholder="Nama lengkap pengguna..."
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Username</label>
+                  <div className="relative">
+                    <Shield size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-500" />
+                    <input 
+                      type="text" className="input w-full pl-12 py-4" required 
+                      disabled={!!selectedUser}
+                      value={form.username} onChange={e => setForm({...form, username: e.target.value})}
+                      placeholder="username_akses"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Password {selectedUser && '(Kosongkan jika tidak ganti)'}</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-500" />
+                    <input 
+                      type="password" className="input w-full pl-12 py-4" 
+                      required={!selectedUser}
+                      value={form.password} onChange={e => setForm({...form, password: e.target.value})}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+                <div className="md:col-span-1">
+                  <PillSelect 
+                    label="Hak Akses / Role"
+                    icon={Shield}
+                    options={[
+                      { value: 'kasir', label: 'Kasir' },
+                      { value: 'admin', label: 'Administrator' }
+                    ]}
+                    value={form.role}
+                    onChange={val => setForm({...form, role: val})}
+                    placeholder="-- Pilih Role --"
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <PillSelect 
+                    label="Cabang"
+                    icon={Building2}
+                    options={form.role === 'admin' 
+                      ? [{ value: '', label: 'Semua Cabang' }, ...branches.map(b => ({ value: b.id, label: b.name }))]
+                      : branches.map(b => ({ value: b.id, label: b.name }))
+                    }
+                    value={form.branch_id}
+                    onChange={val => setForm({...form, branch_id: val})}
+                    placeholder={form.role === 'admin' ? 'Semua Cabang' : '-- Pilih Cabang --'}
+                  />
+                </div>
+                {selectedUser && (
+                  <div className="md:col-span-2">
+                    <PillSelect 
+                      label="Status Akun"
+                      icon={CheckCircle}
+                      options={[
+                        { value: 1, label: 'Aktif' },
+                        { value: 0, label: 'Nonaktif' }
+                      ]}
+                      value={form.is_active}
+                      onChange={val => setForm({...form, is_active: val})}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-4 pt-6 border-t dark:border-gray-800">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-colors">Batal</button>
+                <button type="submit" className="px-8 py-3 rounded-2xl bg-primary-500 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:scale-105 transition-all">Simpan User</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
