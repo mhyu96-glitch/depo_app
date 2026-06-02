@@ -5,65 +5,35 @@ require('dotenv').config();
 
 const app = express();
 
-// CORS Configuration - More permissive for production
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
-  'http://localhost:5174',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-  'https://depo-app.pages.dev',
-  'https://depo178.site',
-  'http://depo178.site',
-];
-
-app.use(cors({ 
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is allowed
-    if (
-      allowedOrigins.indexOf(origin) !== -1 || 
-      origin.startsWith('http://localhost:') ||
-      origin.startsWith('https://localhost:') ||
-      origin.endsWith('.pages.dev') ||
-      origin.endsWith('.workers.dev') ||
-      origin.includes('depo178.site') ||
-      origin.includes('depo-app') ||
-      origin.includes('vercel.app')
-    ) {
-      callback(null, true);
-    } else {
-      console.warn('CORS blocked origin:', origin);
-      callback(null, true); // Allow anyway for now (permissive mode)
-    }
-  }, 
+// SUPER PERMISSIVE CORS - Allow ALL origins for production debugging
+app.use(cors({
+  origin: '*', // Allow all origins
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'Origin'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
-// Additional CORS headers for preflight
+// Additional permissive headers
 app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
-  }
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   
-  // Handle preflight
+  // Handle preflight immediately
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    return res.status(204).end();
   }
   
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
 // Static files for frontend (if built)
