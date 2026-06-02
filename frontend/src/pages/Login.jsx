@@ -22,14 +22,13 @@ export default function Login() {
   const [error, setError]     = useState('');
   const [showBranch, setShowBranch] = useState(false);
   const [branches, setBranches] = useState([]);
-  const [branchLoading, setBranchLoading] = useState(true);
-  const [manualBranch, setManualBranch] = useState(false); // tampilkan input manual jika API gagal
 
-  // Load daftar cabang - multi-strategy dengan fallback
+  // Load cabang dari cache localStorage (diisi saat user sudah login dan buka halaman Branches)
+  // Juga coba fetch di background tanpa block UI
   useEffect(() => {
     const CACHE_KEY = 'cached_branches';
 
-    // 1. Tampilkan cache localStorage dulu (instant, tidak blank)
+    // Pakai cache dulu - instant
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
@@ -37,41 +36,30 @@ export default function Login() {
         if (list.length > 0) {
           setBranches(list);
           setForm(f => ({ ...f, branch: f.branch || list[0].name }));
-          setBranchLoading(false);
-          // Tetap fetch fresh di background
         }
       }
     } catch (_) {}
 
-    // 2. Fetch fresh dari API Vercel langsung (bypass service worker)
-    const VERCEL_API = 'https://depo-app-five.vercel.app/api';
-    fetch(`${VERCEL_API}/branches?_t=${Date.now()}`, { 
-      cache: 'no-store',
-      mode: 'cors',
+    // Fetch di background - tidak blocking, tidak ada error state
+    fetch(`https://depo-app-five.vercel.app/api/branches?_t=${Date.now()}`, { 
+      cache: 'no-store', mode: 'cors'
     })
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(r => r.ok ? r.json() : null)
       .then(res => {
-        const list = res.data || [];
+        const list = res?.data || [];
         if (list.length > 0) {
           setBranches(list);
           setForm(f => ({ ...f, branch: f.branch || list[0].name }));
           localStorage.setItem(CACHE_KEY, JSON.stringify(list));
-          setManualBranch(false);
         }
       })
-      .catch(() => {
-        // 3. Jika cache kosong DAN fetch gagal, tampilkan input manual
-        const cached = localStorage.getItem(CACHE_KEY);
-        if (!cached) setManualBranch(true);
-      })
-      .finally(() => setBranchLoading(false));
+      .catch(() => {}); // silent fail - pakai cache saja
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       await login(form.username, form.password, form.branch);
       navigate('/dashboard');
@@ -127,29 +115,18 @@ export default function Login() {
             {/* Custom Pill Branch Selector */}
             <div className="form-group relative z-[50]">
                <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest mb-3 block">Lokasi Cabang</label>
-               
-               {/* Input manual jika API gagal total dan tidak ada cache */}
-               {manualBranch ? (
-                 <input
-                   type="text" required
-                   className="w-full h-14 bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all px-6 rounded-full text-sm font-bold uppercase tracking-widest"
-                   placeholder="Ketik nama cabang..."
-                   value={form.branch}
-                   onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
-                 />
-               ) : (
                <div className="relative">
                   <motion.div 
-                    onClick={() => !branchLoading && setShowBranch(!showBranch)}
+                    onClick={() => setShowBranch(!showBranch)}
                     className="w-full h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-6 flex items-center justify-between cursor-pointer transition-all shadow-inner group"
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-primary-500 text-white flex items-center justify-center shadow-lg shadow-primary-500/30">
-                        {branchLoading ? <Loader2 size={14} className="animate-spin" /> : <MapPin size={14} />}
+                        <MapPin size={14} />
                       </div>
                       <span className="text-white font-black text-xs uppercase tracking-widest">
-                        {form.branch || (branchLoading ? 'Memuat cabang...' : 'Pilih Cabang')}
+                        {form.branch || 'Pilih Cabang'}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-white/30 transition-transform duration-300 ${showBranch ? 'rotate-180' : ''}`} />
@@ -163,7 +140,7 @@ export default function Login() {
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         className="absolute top-full left-0 right-0 bg-[#0f172a]/95 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-3 shadow-2xl z-[100] overflow-hidden"
                       >
-                        {branches.map(b => (
+                        {branches.length > 0 ? branches.map(b => (
                           <motion.div
                             key={b.id || b.name}
                             onClick={() => {
@@ -176,12 +153,25 @@ export default function Login() {
                             <div className={`w-1.5 h-1.5 rounded-full ${form.branch === b.name ? 'bg-white' : 'bg-primary-500'}`} />
                             <span className="text-xs font-black uppercase tracking-widest">{b.name}</span>
                           </motion.div>
-                        ))}
+                        )) : (
+                          // Jika cabang belum load, beri opsi input manual
+                          <div className="p-4">
+                            <p className="text-[10px] text-primary-300 font-bold mb-3 uppercase tracking-widest">Ketik nama cabang:</p>
+                            <input
+                              type="text"
+                              className="w-full bg-white/5 border border-white/10 text-white rounded-2xl px-4 py-3 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-primary-500"
+                              placeholder="Nama cabang..."
+                              value={form.branch}
+                              onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
+                              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); setShowBranch(false); } }}
+                              autoFocus
+                            />
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
                </div>
-               )}
             </div>
 
             <div className="form-group">
