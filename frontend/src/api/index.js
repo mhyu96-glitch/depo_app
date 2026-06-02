@@ -137,6 +137,7 @@ export const productApi = {
   getAll:  (params) => api.get('/products', { params }),
   create:  (data)   => api.post('/products', data),
   update:  (id, d)  => api.put(`/products/${id}`, d),
+  remove:  (id)     => api.delete(`/products/${id}`),
 };
 
 // Reports

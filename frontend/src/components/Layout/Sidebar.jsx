@@ -86,6 +86,7 @@ export default function Sidebar({ open, onClose, collapsed }) {
             </div>
             <NavItem to="/fleet"      icon="delivery_dining" label="Armada" color="text-purple-500" onClick={onClose} collapsed={collapsed} />
             <NavItem to="/inventory"  icon="waves" label="Inventori" color="text-blue-400" onClick={onClose} collapsed={collapsed} />
+            <NavItem to="/products"   icon="inventory_2" label="Produk & Harga" color="text-teal-500" onClick={onClose} collapsed={collapsed} />
             <NavItem to="/expenses"   icon="receipt_long" label="Biaya Toko" color="text-orange-500" onClick={onClose} collapsed={collapsed} />
             <NavItem to="/cashflow"   icon="account_balance_wallet" label="Kas Toko" color="text-green-500" onClick={onClose} collapsed={collapsed} />
 

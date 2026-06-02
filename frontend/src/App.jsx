@@ -18,6 +18,7 @@ import Users           from './pages/Users';
 import Analytics       from './pages/Analytics';
 import Fleet           from './pages/Fleet';
 import Inventory       from './pages/Inventory';
+import Products        from './pages/Products';
 import Settings        from './pages/Settings';
 import SalesReport     from './pages/reports/SalesReport';
 import SalaryReport    from './pages/reports/SalaryReport';
@@ -71,6 +72,7 @@ const AppRoutes = () => {
         {/* Admin Only Routes */}
         <Route path="fleet"              element={<PrivateRoute adminOnly><Fleet /></PrivateRoute>} />
         <Route path="inventory"          element={<PrivateRoute adminOnly><Inventory /></PrivateRoute>} />
+        <Route path="products"           element={<PrivateRoute adminOnly><Products /></PrivateRoute>} />
         <Route path="expenses"           element={<PrivateRoute adminOnly><Expenses /></PrivateRoute>} />
         <Route path="cashflow"           element={<PrivateRoute adminOnly><CashFlow /></PrivateRoute>} />
         <Route path="couriers"           element={<PrivateRoute adminOnly><Couriers /></PrivateRoute>} />
