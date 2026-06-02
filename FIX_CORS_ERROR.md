@@ -15,6 +15,11 @@ Access to XMLHttpRequest at 'https://depo-app-five.vercel.app/api/auth/login' fr
 - ✅ Handle OPTIONS preflight requests
 - ✅ Permissive mode untuk production
 
+### 1.1. **Fix Vercel Configuration**
+- ✅ Hapus deprecated `builds` field
+- ✅ Ganti dengan `rewrites` (modern approach)
+- ✅ Warning "builds existing in configuration" sudah resolved
+
 ### 2. **Additional Headers Middleware**
 ```javascript
 app.use((req, res, next) => {
