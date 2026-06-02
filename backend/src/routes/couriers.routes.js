@@ -4,8 +4,8 @@ const { authenticate } = require('../middleware/auth');
 const { requireRole, requireBranchAccess } = require('../middleware/rbac');
 
 router.get('/', authenticate, requireBranchAccess, ctrl.getAll);
-router.post('/', authenticate, requireRole('admin'), ctrl.create);
-router.put('/:id', authenticate, requireRole('admin'), ctrl.update);
-router.delete('/:id', authenticate, requireRole('admin'), ctrl.remove);
+router.post('/', authenticate, requireRole('admin', 'branch_manager'), requireBranchAccess, ctrl.create);
+router.put('/:id', authenticate, requireRole('admin', 'branch_manager'), requireBranchAccess, ctrl.update);
+router.delete('/:id', authenticate, requireRole('admin', 'branch_manager'), ctrl.remove);
 
 module.exports = router;

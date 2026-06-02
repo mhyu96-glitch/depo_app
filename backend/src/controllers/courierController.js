@@ -3,12 +3,18 @@ const db = require('../config/database');
 exports.getAll = async (req, res) => {
   try {
     const { branch_id } = req.query;
-    let query = 'SELECT * FROM couriers WHERE is_active = true';
+    let query = `
+      SELECT c.*, b.name AS branch_name
+      FROM couriers c
+      LEFT JOIN branches b ON b.id = c.branch_id
+      WHERE c.is_active = true
+    `;
     const params = [];
     if (branch_id) {
       params.push(branch_id);
-      query += ` AND branch_id = $${params.length}`;
+      query += ` AND c.branch_id = $${params.length}`;
     }
+    query += ' ORDER BY c.name ASC';
     const result = await db.pool.query(query, params);
     res.json({ data: result.rows });
   } catch (err) {
@@ -27,10 +33,13 @@ exports.getById = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const { name, whatsapp, address, branch_id } = req.body;
+    const { name, phone, branch_id, base_salary } = req.body;
+    if (!name) return res.status(400).json({ message: 'Nama kurir wajib diisi' });
+    if (!branch_id) return res.status(400).json({ message: 'Cabang wajib dipilih' });
+
     const result = await db.pool.query(
-      'INSERT INTO couriers (name, whatsapp, address, branch_id) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, whatsapp, address, branch_id]
+      'INSERT INTO couriers (name, phone, branch_id, base_salary) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, phone || null, parseInt(branch_id), parseFloat(base_salary) || 0]
     );
     res.json({ message: 'Kurir berhasil ditambahkan', data: result.rows[0] });
   } catch (err) {
@@ -40,10 +49,10 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const { name, whatsapp, address, is_active } = req.body;
+    const { name, phone, branch_id, base_salary, is_active } = req.body;
     await db.pool.query(
-      'UPDATE couriers SET name=$1, whatsapp=$2, address=$3, is_active=$4 WHERE id=$5',
-      [name, whatsapp, address, is_active, req.params.id]
+      'UPDATE couriers SET name=$1, phone=$2, branch_id=$3, base_salary=$4, is_active=$5 WHERE id=$6',
+      [name, phone || null, parseInt(branch_id), parseFloat(base_salary) || 0, is_active ?? true, req.params.id]
     );
     res.json({ message: 'Data kurir diperbarui' });
   } catch (err) {

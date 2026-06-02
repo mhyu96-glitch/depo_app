@@ -29,8 +29,12 @@ export default function Couriers() {
   const loadData = async () => {
     setLoading(true);
     try {
+      // Jika bukan admin, kirim branch_id milik user agar hanya kurir cabang sendiri yang tampil
+      const params = user?.role !== 'admin' && user?.branch_id
+        ? { branch_id: user.branch_id }
+        : {};
       const [courierRes, branchRes] = await Promise.all([
-        courierApi.getAll(),
+        courierApi.getAll(params),
         branchApi.getAll()
       ]);
       setCouriers(courierRes.data.data);
