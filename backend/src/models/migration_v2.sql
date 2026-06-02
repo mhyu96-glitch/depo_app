@@ -12,8 +12,6 @@ ALTER TABLE fleet_vehicles
   ADD COLUMN IF NOT EXISTS next_service DATE;
 
 -- 2. Tambah unique_code (barcode-friendly, numeric) ke customers
---    voucher_code yang ada sudah berfungsi sebagai kode unik
---    Tambah kolom barcode_code berupa angka 10 digit
 ALTER TABLE customers
   ADD COLUMN IF NOT EXISTS barcode_code VARCHAR(20) UNIQUE;
 
@@ -22,14 +20,11 @@ UPDATE customers
 SET barcode_code = LPAD((FLOOR(RANDOM() * 9000000000) + 1000000000)::TEXT, 10, '0')
 WHERE barcode_code IS NULL;
 
--- 3. Role superadmin sudah supported via middleware, tidak perlu ALTER CHECK
---    Kalau ada CHECK CONSTRAINT di kolom role, hapus dulu:
--- ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
--- ALTER TABLE users ADD CONSTRAINT users_role_check 
---   CHECK (role IN ('superadmin', 'admin', 'kasir'));
+-- 3. Tambah kolom user_id ke couriers (untuk fitur rolling kurir ↔ kasir)
+ALTER TABLE couriers
+  ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
 
 -- 4. Seed: Superadmin user (password = 'superadmin123')
---    Hash bcrypt dari 'superadmin123' dengan salt 10
 INSERT INTO users (branch_id, name, username, password, role) 
 VALUES (
   1, 

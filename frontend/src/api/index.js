@@ -160,10 +160,12 @@ export const dashboardApi = {
 
 // Users
 export const userApi = {
-  getAll:  (params) => api.get('/users', { params }),
-  create:  (data)   => api.post('/users', data),
-  update:  (id, d)  => api.put(`/users/${id}`, d),
-  remove:  (id)     => api.delete(`/users/${id}`),
+  getAll:          (params) => api.get('/users', { params }),
+  create:          (data)   => api.post('/users', data),
+  update:          (id, d)  => api.put(`/users/${id}`, d),
+  remove:          (id)     => api.delete(`/users/${id}`),
+  courierToKasir:  (data)   => api.post('/users/courier-to-kasir', data),
+  kasirToCourier:  (data)   => api.post('/users/kasir-to-courier', data),
 };
 
 // Fleet

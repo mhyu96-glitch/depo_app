@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { courierApi, branchApi } from '../api';
+import { courierApi, branchApi, userApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { 
   Truck, Plus, Edit2, Trash2, 
   Loader2, X, Phone, Building2, 
-  Wallet, CheckCircle, XCircle 
+  Wallet, CheckCircle, XCircle, UserPlus, RefreshCw
 } from 'lucide-react';
 
 import PillSelect from '../components/PillSelect';
@@ -25,6 +25,11 @@ export default function Couriers() {
     base_salary: '',
     is_active: 1
   });
+
+  // State untuk modal rolling kurir → kasir
+  const [rollingCourier, setRollingCourier] = useState(null);
+  const [rollingForm, setRollingForm] = useState({ username: '', password: '' });
+  const [rollingLoading, setRollingLoading] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -99,6 +104,27 @@ export default function Couriers() {
     }
   };
 
+  const handleRollingToKasir = async (e) => {
+    e.preventDefault();
+    if (!rollingCourier) return;
+    setRollingLoading(true);
+    try {
+      const res = await userApi.courierToKasir({
+        courier_id: rollingCourier.id,
+        username: rollingForm.username,
+        password: rollingForm.password
+      });
+      alert(res.data.message);
+      setRollingCourier(null);
+      setRollingForm({ username: '', password: '' });
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal rolling ke kasir');
+    } finally {
+      setRollingLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="page-header">
@@ -147,9 +173,18 @@ export default function Couriers() {
                     <Edit2 size={18} />
                   </button>
                   {c.is_active && (
-                    <button onClick={() => handleDelete(c.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-gray-400 hover:text-red-500 transition-colors">
-                      <Trash2 size={18} />
-                    </button>
+                    <>
+                      <button 
+                        onClick={() => { setRollingCourier(c); setRollingForm({ username: c.name.toLowerCase().replace(/\s+/g, '_'), password: '' }); }}
+                        className="p-2 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-xl text-gray-400 hover:text-cyan-500 transition-colors"
+                        title="Jadikan Kasir"
+                      >
+                        <UserPlus size={18} />
+                      </button>
+                      <button onClick={() => handleDelete(c.id)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-gray-400 hover:text-red-500 transition-colors">
+                        <Trash2 size={18} />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -239,6 +274,67 @@ export default function Couriers() {
               <div className="flex justify-end gap-4 pt-6 border-t dark:border-gray-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 font-black text-[10px] uppercase tracking-widest hover:bg-gray-200 transition-colors">Batal</button>
                 <button type="submit" className="px-8 py-3 rounded-2xl bg-primary-500 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary-500/20 hover:scale-105 transition-all">Simpan Data</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal Rolling: Kurir → Kasir */}
+      {rollingCourier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-scale-in">
+            <div className="p-6 border-b dark:border-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-100 text-cyan-600 flex items-center justify-center">
+                  <RefreshCw size={18} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black">Rolling Jabatan</h2>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Kurir → Kasir</p>
+                </div>
+              </div>
+              <button onClick={() => setRollingCourier(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleRollingToKasir} className="p-8 space-y-6">
+              <div className="p-4 rounded-2xl bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-100 dark:border-cyan-800/30 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500 text-white flex items-center justify-center font-black">
+                  {(rollingCourier.name?.[0] || '?').toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-black text-cyan-900 dark:text-cyan-100">{rollingCourier.name}</p>
+                  <p className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">
+                    {rollingCourier.branch_name || 'Kurir'} · akan dijadikan Kasir
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Username Login</label>
+                <input
+                  type="text" required
+                  className="input w-full py-4 px-5"
+                  placeholder="username_kasir"
+                  value={rollingForm.username}
+                  onChange={e => setRollingForm({ ...rollingForm, username: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Password</label>
+                <input
+                  type="password" required minLength={6}
+                  className="input w-full py-4 px-5"
+                  placeholder="Min. 6 karakter"
+                  value={rollingForm.password}
+                  onChange={e => setRollingForm({ ...rollingForm, password: e.target.value })}
+                />
+              </div>
+
+              <div className="flex justify-end gap-4 pt-4 border-t dark:border-gray-800">
+                <button type="button" onClick={() => setRollingCourier(null)} className="px-6 py-3 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 font-black text-[10px] uppercase tracking-widest">Batal</button>
+                <button type="submit" disabled={rollingLoading} className="px-8 py-3 rounded-2xl bg-cyan-500 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all flex items-center gap-2">
+                  {rollingLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                  Jadikan Kasir
+                </button>
               </div>
             </form>
           </div>
