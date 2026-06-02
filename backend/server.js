@@ -9,20 +9,22 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174'
+  'http://127.0.0.1:5174',
+  'https://depo-app.pages.dev',
+  'https://depo178.site',
 ];
 
 app.use(cors({ 
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    // Allow localhost, Cloudflare Pages (.pages.dev), and configured FRONTEND_URL
     if (
       allowedOrigins.indexOf(origin) !== -1 || 
       origin.startsWith('http://localhost:') ||
       origin.endsWith('.pages.dev') ||
       origin.endsWith('.workers.dev') ||
-      origin.includes('depo178.site')
+      origin.includes('depo178.site') ||
+      origin.includes('vercel.app')
     ) {
       callback(null, true);
     } else {

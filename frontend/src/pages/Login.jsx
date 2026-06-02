@@ -23,28 +23,31 @@ export default function Login() {
   const [showBranch, setShowBranch] = useState(false);
   const [branches, setBranches] = useState([]);
   const [branchLoading, setBranchLoading] = useState(true);
+  const [manualBranch, setManualBranch] = useState(false); // tampilkan input manual jika API gagal
 
-  // Load daftar cabang dari API - dengan fallback ke cache localStorage
+  // Load daftar cabang - multi-strategy dengan fallback
   useEffect(() => {
     const CACHE_KEY = 'cached_branches';
-    
-    // Tampilkan cache dulu agar tidak blank
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      try {
+
+    // 1. Tampilkan cache localStorage dulu (instant, tidak blank)
+    try {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
         const list = JSON.parse(cached);
         if (list.length > 0) {
           setBranches(list);
           setForm(f => ({ ...f, branch: f.branch || list[0].name }));
+          setBranchLoading(false);
+          // Tetap fetch fresh di background
         }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
 
-    // Fetch fresh dari API
-    const apiUrl = (import.meta.env.VITE_API_URL || '/api') + '/branches?_t=' + Date.now();
-    fetch(apiUrl, { 
+    // 2. Fetch fresh dari API Vercel langsung (bypass service worker)
+    const VERCEL_API = 'https://depo-app-five.vercel.app/api';
+    fetch(`${VERCEL_API}/branches?_t=${Date.now()}`, { 
       cache: 'no-store',
-      headers: { 'Content-Type': 'application/json' }
+      mode: 'cors',
     })
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(res => {
@@ -52,17 +55,14 @@ export default function Login() {
         if (list.length > 0) {
           setBranches(list);
           setForm(f => ({ ...f, branch: f.branch || list[0].name }));
-          // Simpan ke cache untuk kunjungan berikutnya
           localStorage.setItem(CACHE_KEY, JSON.stringify(list));
+          setManualBranch(false);
         }
       })
       .catch(() => {
-        // Gunakan cache yang sudah di-set di atas, atau fallback minimal
-        if (!cached) {
-          const fallback = [{ id: 1, name: 'Depo Pusat' }];
-          setBranches(fallback);
-          setForm(f => ({ ...f, branch: 'Depo Pusat' }));
-        }
+        // 3. Jika cache kosong DAN fetch gagal, tampilkan input manual
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (!cached) setManualBranch(true);
       })
       .finally(() => setBranchLoading(false));
   }, []);
@@ -127,9 +127,20 @@ export default function Login() {
             {/* Custom Pill Branch Selector */}
             <div className="form-group relative z-[50]">
                <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest mb-3 block">Lokasi Cabang</label>
+               
+               {/* Input manual jika API gagal total dan tidak ada cache */}
+               {manualBranch ? (
+                 <input
+                   type="text" required
+                   className="w-full h-14 bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all px-6 rounded-full text-sm font-bold uppercase tracking-widest"
+                   placeholder="Ketik nama cabang..."
+                   value={form.branch}
+                   onChange={e => setForm(f => ({ ...f, branch: e.target.value }))}
+                 />
+               ) : (
                <div className="relative">
                   <motion.div 
-                    onClick={() => setShowBranch(!showBranch)}
+                    onClick={() => !branchLoading && setShowBranch(!showBranch)}
                     className="w-full h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-6 flex items-center justify-between cursor-pointer transition-all shadow-inner group"
                     whileTap={{ scale: 0.98 }}
                   >
@@ -170,6 +181,7 @@ export default function Login() {
                     )}
                   </AnimatePresence>
                </div>
+               )}
             </div>
 
             <div className="form-group">

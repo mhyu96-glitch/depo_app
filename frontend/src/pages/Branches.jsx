@@ -21,7 +21,12 @@ export default function Branches() {
     setLoading(true);
     try {
       const res = await branchApi.getAll();
-      setBranches(res.data.data);
+      const list = res.data.data || [];
+      setBranches(list);
+      // Cache ke localStorage agar halaman login bisa pakai saat belum login
+      if (list.length > 0) {
+        localStorage.setItem('cached_branches', JSON.stringify(list));
+      }
     } catch (err) {
       console.error(err);
     } finally {
