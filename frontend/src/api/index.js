@@ -3,7 +3,7 @@ import axiosRetry from 'axios-retry';
 import { foundation } from '../utils/foundation';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: 15000,
 });
 
