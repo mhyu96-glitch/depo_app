@@ -102,10 +102,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-950 via-primary-900 to-brand-900 p-4 relative overflow-hidden font-outfit">
-      {/* Background orbs */}
-      <div className="absolute top-[-100px] left-[-100px] w-[500px] h-[500px] bg-primary-500/20 rounded-full blur-[120px] animate-pulse" />
-      <div className="absolute bottom-[-100px] right-[-100px] w-[500px] h-[500px] bg-brand-500/20 rounded-full blur-[120px] animate-pulse" />
-
       <div className="w-full max-w-md relative z-10 pt-24 pb-10">
         {/* Logo card */}
         <div className="text-center mb-10">
