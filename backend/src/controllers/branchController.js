@@ -20,12 +20,18 @@ exports.create = async (req, res) => {
   if (process.env.DEMO_MODE === 'true') return res.json({ message: 'Created (Demo)', data: { id: 99, ...req.body } });
   try {
     const { name, code, address, phone } = req.body;
+    if (!name || !code) return res.status(400).json({ message: 'Nama dan kode cabang wajib diisi' });
+
     const result = await db.pool.query(
       'INSERT INTO branches (name, code, address, phone) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, code, address, phone]
+      [name, code.toUpperCase(), address || null, phone || null]
     );
     res.json({ message: 'Cabang berhasil ditambahkan', data: result.rows[0] });
   } catch (err) {
+    // Unique violation on code
+    if (err.code === '23505') {
+      return res.status(400).json({ message: `Kode cabang "${req.body.code}" sudah digunakan, gunakan kode lain` });
+    }
     res.status(500).json({ message: 'Error', error: err.message });
   }
 };
@@ -34,9 +40,15 @@ exports.update = async (req, res) => {
   if (process.env.DEMO_MODE === 'true') return res.json({ message: 'Updated (Demo)' });
   try {
     const { name, code, address, phone } = req.body;
-    await db.pool.query('UPDATE branches SET name=$1, code=$2, address=$3, phone=$4 WHERE id=$5', [name, code, address, phone, req.params.id]);
+    await db.pool.query(
+      'UPDATE branches SET name=$1, code=$2, address=$3, phone=$4 WHERE id=$5',
+      [name, code.toUpperCase(), address || null, phone || null, req.params.id]
+    );
     res.json({ message: 'Cabang diperbarui' });
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ message: `Kode cabang "${req.body.code}" sudah digunakan` });
+    }
     res.status(500).json({ message: 'Error', error: err.message });
   }
 };
