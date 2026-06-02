@@ -35,9 +35,7 @@ export default function Login() {
         const list = JSON.parse(cached);
         if (Array.isArray(list) && list.length > 0) {
           setBranches(list);
-          if (!form.branch && list[0]?.name) {
-            setForm(f => ({ ...f, branch: list[0].name }));
-          }
+          // TIDAK AUTO SELECT - biarkan user pilih sendiri atau kosongkan (otomatis dari database)
         }
       }
     } catch (e) {
@@ -65,9 +63,7 @@ export default function Login() {
         if (Array.isArray(list) && list.length > 0) {
           console.log('Branches loaded:', list);
           setBranches(list);
-          if (!form.branch && list[0]?.name) {
-            setForm(f => ({ ...f, branch: list[0].name }));
-          }
+          // TIDAK AUTO SELECT - biarkan user pilih sendiri atau kosongkan (otomatis dari database)
           localStorage.setItem(CACHE_KEY, JSON.stringify(list));
         }
       } catch (err) {
@@ -84,14 +80,11 @@ export default function Login() {
     e.preventDefault();
     setError('');
     
-    if (!form.branch) {
-      setError('Pilih cabang terlebih dahulu');
-      return;
-    }
+    // Branch tidak wajib - user akan otomatis login ke cabang mereka dari database
     
     console.log('Login attempt:', { 
       username: form.username, 
-      branch: form.branch,
+      branch: form.branch || '(auto dari database)',
       availableBranches: branches.map(b => b.name)
     });
     
@@ -151,7 +144,7 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Custom Pill Branch Selector */}
             <div className="form-group relative z-[50]">
-               <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest mb-3 block">Lokasi Cabang</label>
+               <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest mb-3 block">Lokasi Cabang (Opsional)</label>
                <div className="relative">
                   <motion.div 
                     onClick={() => setShowBranch(!showBranch)}
@@ -163,7 +156,7 @@ export default function Login() {
                         <MapPin size={14} />
                       </div>
                       <span className="text-white font-black text-xs uppercase tracking-widest">
-                        {form.branch || 'Pilih Cabang'}
+                        {form.branch || 'Pilih Cabang (Opsional)'}
                       </span>
                     </div>
                     <ChevronDown size={18} className={`text-white/30 transition-transform duration-300 ${showBranch ? 'rotate-180' : ''}`} />

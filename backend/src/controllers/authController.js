@@ -40,18 +40,10 @@ exports.login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Username atau password salah' });
 
-    // Validasi cabang: jika user bukan superadmin dan memilih cabang, harus sesuai dengan cabang yang ditugaskan
-    if (user.role !== 'superadmin' && branch && user.branch_name) {
-      if (branch.toLowerCase().trim() !== user.branch_name.toLowerCase().trim()) {
-        return res.status(403).json({ 
-          message: `Anda hanya bisa login ke cabang "${user.branch_name}". Cabang yang Anda pilih: "${branch}"` 
-        });
-      }
-    }
+    // TIDAK ADA VALIDASI STRICT - User bisa login dari cabang manapun
+    // Branch selection hanya untuk display/filter data, bukan untuk blocking login
+    // Data access control tetap berdasarkan user.branch_id dari database
     
-    // Jika tidak ada branch dipilih atau user adalah superadmin, gunakan branch dari database
-    // Superadmin bisa pilih branch mana saja untuk sesi kerja mereka
-
     const token = jwt.sign(
       { id: user.id, role: user.role, branch_id: user.branch_id },
       process.env.JWT_SECRET,
