@@ -86,8 +86,11 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-if (process.env.VERCEL !== '1') {
+
+// For local development
+if (require.main === module) {
   app.listen(PORT, () => console.log(`🚀 Depo Air Minum Server running on port ${PORT}`));
 }
 
+// For Vercel serverless
 module.exports = app;
