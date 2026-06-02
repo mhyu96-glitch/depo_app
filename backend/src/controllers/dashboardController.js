@@ -78,10 +78,10 @@ exports.getMonthlySalesTrend = async (req, res) => {
         TO_CHAR(created_at, 'Month') as month_name,
         EXTRACT(MONTH FROM created_at) as month_num,
         SUM(total_amount) as total_sales,
-        (SELECT SUM(quantity) FROM transaction_items WHERE transaction_id IN (SELECT id FROM transactions WHERE EXTRACT(MONTH FROM created_at) = EXTRACT(MONTH FROM t.created_at))) as total_gallons
+        COALESCE(SUM((SELECT SUM(quantity) FROM transaction_items WHERE transaction_id = t.id)), 0) as total_gallons
        FROM transactions t
        WHERE created_at >= CURRENT_DATE - INTERVAL '6 months' ${bidFilter}
-       GROUP BY month_name, month_num, EXTRACT(MONTH FROM created_at)
+       GROUP BY TO_CHAR(created_at, 'Month'), EXTRACT(MONTH FROM created_at)
        ORDER BY month_num ASC`,
       bidParams
     );
@@ -102,7 +102,7 @@ exports.getDailySalesTrend = async (req, res) => {
       `SELECT 
         created_at::date as date,
         SUM(total_amount) as total_sales,
-        (SELECT SUM(quantity) FROM transaction_items WHERE transaction_id IN (SELECT id FROM transactions WHERE created_at::date = t.created_at::date)) as total_gallons
+        COALESCE(SUM((SELECT SUM(quantity) FROM transaction_items WHERE transaction_id = t.id)), 0) as total_gallons
        FROM transactions t
        WHERE created_at >= CURRENT_DATE - INTERVAL '7 days' ${bidFilter}
        GROUP BY date
