@@ -82,19 +82,27 @@ export default function Login() {
     
     // Branch tidak wajib - user akan otomatis login ke cabang mereka dari database
     
-    console.log('Login attempt:', { 
-      username: form.username, 
-      branch: form.branch || '(auto dari database)',
-      availableBranches: branches.map(b => b.name)
-    });
+    console.log('=== LOGIN ATTEMPT ===');
+    console.log('Username:', form.username);
+    console.log('Branch selected:', form.branch || '(kosong - otomatis dari database)');
+    console.log('Available branches:', branches.map(b => b.name));
+    console.log('API URL:', import.meta.env.VITE_API_URL || '/api');
     
     setLoading(true);
     try {
-      await login(form.username, form.password, form.branch);
+      const result = await login(form.username, form.password, form.branch);
+      console.log('=== LOGIN SUCCESS ===');
+      console.log('User data:', result);
       navigate('/dashboard');
     } catch (err) {
-      console.error('Login error:', err.response?.data || err.message);
-      setError(err.response?.data?.message || 'Akses Ditolak: Periksa kembali Username & Password Anda');
+      console.error('=== LOGIN FAILED ===');
+      console.error('Error object:', err);
+      console.error('Response data:', err.response?.data);
+      console.error('Status code:', err.response?.status);
+      console.error('Error message:', err.message);
+      
+      const errorMsg = err.response?.data?.message || err.message || 'Akses Ditolak: Periksa kembali Username & Password Anda';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

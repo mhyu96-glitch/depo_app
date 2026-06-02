@@ -35,22 +35,36 @@ exports.login = async (req, res) => {
     );
     const user = result.rows[0];
 
-    if (!user) return res.status(401).json({ message: 'Username atau password salah' });
+    if (!user) {
+      console.log('Login failed: User not found or inactive:', username);
+      return res.status(401).json({ message: 'Username atau password salah' });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(401).json({ message: 'Username atau password salah' });
+    if (!isMatch) {
+      console.log('Login failed: Wrong password for user:', username);
+      return res.status(401).json({ message: 'Username atau password salah' });
+    }
 
-    // TIDAK ADA VALIDASI STRICT - User bisa login dari cabang manapun
-    // Branch selection hanya untuk display/filter data, bukan untuk blocking login
-    // Data access control tetap berdasarkan user.branch_id dari database
-    
+    console.log('Login successful:', { 
+      username: user.username, 
+      role: user.role, 
+      branch_id: user.branch_id,
+      branch_name: user.branch_name 
+    });
+
     const token = jwt.sign(
       { id: user.id, role: user.role, branch_id: user.branch_id },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
-    await db.pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+    // Update last_login - tidak blocking jika gagal
+    try {
+      await db.pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+    } catch (updateErr) {
+      console.warn('Failed to update last_login:', updateErr.message);
+    }
 
     res.json({
       message: 'Login berhasil',
@@ -67,6 +81,7 @@ exports.login = async (req, res) => {
       }
     });
   } catch (err) {
+    console.error('Login error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };

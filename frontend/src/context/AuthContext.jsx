@@ -30,16 +30,21 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = async (username, password, branch) => {
+    console.log('AuthContext.login called:', { username, branch });
     const res = await authApi.login({ username, password, branch });
+    console.log('Login API response:', res.data);
+    
     const { token: tk, user: u } = res.data.data;
-    const userWithBranch = { ...u, branch: branch || u.branch };
+    
+    // User data sudah lengkap dari backend (termasuk branch_name)
+    // Tidak perlu tambahkan field branch lagi
     
     localStorage.setItem('token', tk);
-    foundation.storage.set('user', userWithBranch);
+    foundation.storage.set('user', u);
     
     setToken(tk);
-    setUser(userWithBranch);
-    return userWithBranch;
+    setUser(u);
+    return u;
   };
 
   const logout = () => {
