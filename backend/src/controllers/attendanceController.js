@@ -170,61 +170,50 @@ exports.checkOut = async (req, res) => {
 exports.getTodayAttendance = async (req, res) => {
   try {
     const { branch_id } = req.query;
-    const today = new Date().toISOString().split('T')[0];
-
-    // Get available columns first
-    const schemaResult = await db.pool.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'attendance'
-    `);
     
-    const availableColumns = schemaResult.rows.map(row => row.column_name);
-    
-    // Build query based on available columns
-    let baseSelect = 'a.*';
-    let joins = [];
-    
-    if (availableColumns.includes('courier_id')) {
-      joins.push('LEFT JOIN couriers c ON a.courier_id = c.id');
-      baseSelect = 'a.*, c.name as courier_name';
-    }
-    
-    if (availableColumns.includes('created_by')) {
-      joins.push('LEFT JOIN users u ON a.created_by = u.id');
-      baseSelect += ', u.name as created_by_name';
-    }
-
-    let query = `SELECT ${baseSelect} FROM attendance a ${joins.join(' ')} WHERE 1=1`;
+    // Start with very simple query
+    let query = 'SELECT * FROM attendance WHERE 1=1';
     const params = [];
     let paramCount = 0;
 
-    // Add date filter - try different date column patterns
-    if (availableColumns.includes('date')) {
+    // Try to add date filter
+    const today = new Date().toISOString().split('T')[0];
+    
+    try {
+      // Test if date column exists
+      await db.pool.query('SELECT date FROM attendance LIMIT 1');
       paramCount++;
-      query += ` AND a.date = $${paramCount}`;
+      query += ` AND date = $${paramCount}`;
       params.push(today);
-    } else if (availableColumns.includes('created_at')) {
-      paramCount++;
-      query += ` AND DATE(a.created_at) = $${paramCount}`;
-      params.push(today);
+    } catch (dateError) {
+      try {
+        // Fallback to created_at
+        await db.pool.query('SELECT created_at FROM attendance LIMIT 1');
+        paramCount++;
+        query += ` AND DATE(created_at) = $${paramCount}`;
+        params.push(today);
+      } catch (createdAtError) {
+        // No date filtering if neither column exists
+      }
     }
 
-    if (branch_id && availableColumns.includes('branch_id')) {
-      paramCount++;
-      query += ` AND a.branch_id = $${paramCount}`;
-      params.push(branch_id);
+    // Add branch filter if column exists
+    if (branch_id) {
+      try {
+        await db.pool.query('SELECT branch_id FROM attendance LIMIT 1');
+        paramCount++;
+        query += ` AND branch_id = $${paramCount}`;
+        params.push(branch_id);
+      } catch (branchError) {
+        // Skip branch filter if column doesn't exist
+      }
     }
 
-    // Order by available time columns
-    if (availableColumns.includes('check_in_time')) {
-      query += ' ORDER BY a.check_in_time DESC';
-    } else {
-      query += ' ORDER BY a.created_at DESC';
-    }
+    query += ' ORDER BY id DESC LIMIT 50';
 
-    console.log('Today attendance query:', query);
+    console.log('Simple today attendance query:', query, 'params:', params);
     const result = await db.pool.query(query, params);
+    
     res.json({ data: result.rows });
   } catch (err) {
     console.error('Today attendance error:', err);
