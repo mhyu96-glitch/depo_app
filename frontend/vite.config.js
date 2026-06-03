@@ -33,6 +33,20 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    sourcemap: false,
+    minify: 'esbuild',
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'chart-vendor': ['recharts'],
+          'ui-vendor': ['framer-motion', 'lucide-react']
+        }
+      }
+    }
+  },
   server: {
     port: 5173,
     open: process.env.VITE_OPEN_BRAVE === 'true' ? 'C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe' : false,
