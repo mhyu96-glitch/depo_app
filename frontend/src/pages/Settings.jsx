@@ -1,18 +1,16 @@
-import { useState, useEffect } from 'react';
-import { productApi, authApi } from '../api';
+import { useState } from 'react';
+import { authApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { 
   Settings as SettingsIcon, Package, Key, 
-  Save, Loader2, CheckCircle, AlertCircle, Droplets,
+  Loader2, CheckCircle, AlertCircle,
   Palette, Smartphone, Store, Plus, RefreshCcw
 } from 'lucide-react';
 
 export default function Settings() {
   const { user } = useAuth();
   const { brandColor, setBrandColor, brandName, setBrandName } = useTheme();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState('');
   
@@ -26,31 +24,6 @@ export default function Settings() {
     new_password: '',
     confirm_password: ''
   });
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const res = await productApi.getAll();
-      setProducts(res.data.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadData(); }, []);
-
-  const handlePriceUpdate = async (id, price) => {
-    try {
-      await productApi.update(id, { price });
-      setSuccess('Harga produk berhasil diperbarui');
-      setTimeout(() => setSuccess(''), 3000);
-      loadData();
-    } catch (err) {
-      alert('Gagal memperbarui harga');
-    }
-  };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -96,7 +69,7 @@ export default function Settings() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Branding & Products */}
+        {/* Left Column: Branding Only */}
         <div className="lg:col-span-7 space-y-8">
            {/* Branding Engine */}
            <div className="card p-8 border-none shadow-xl space-y-8">
@@ -147,47 +120,24 @@ export default function Settings() {
               </div>
            </div>
 
-           {/* Product Prices */}
-           <div className="card p-8 border-none shadow-xl space-y-8">
+           {/* Notice about Product Management */}
+           <div className="card p-8 border-none shadow-xl space-y-6 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/10 dark:to-cyan-900/10">
               <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                 <Package className="text-primary-500" size={18} />
-                 Konfigurasi Harga Produk
+                 <Package className="text-blue-500" size={18} />
+                 Manajemen Produk & Harga
               </h2>
-              {loading ? (
-                <div className="flex justify-center py-8 font-black animate-pulse text-gray-300">SYNCING PRODUCTS...</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {products.map((p) => (
-                    <div key={p.id} className="p-5 rounded-3xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 group hover:border-primary-500/30 transition-all">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-xl bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center text-primary-500">
-                          <Droplets size={20} />
-                        </div>
-                        <div>
-                          <p className="font-black text-gray-900 dark:text-white text-sm tracking-tight">{p.name}</p>
-                          <p className="text-[9px] font-black text-gray-400 uppercase">{p.branch_name || 'Global System'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1 relative">
-                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black text-xs">Rp</span>
-                           <input 
-                            type="number" className="input pl-10 h-11 text-sm font-black bg-white dark:bg-gray-900" 
-                            defaultValue={p.price}
-                            onBlur={(e) => {
-                              const val = parseFloat(e.target.value);
-                              if (val !== p.price) handlePriceUpdate(p.id, val);
-                            }}
-                          />
-                        </div>
-                        <button className="w-11 h-11 rounded-xl bg-primary-600 text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all">
-                          <Save size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="flex items-center justify-between">
+                 <div>
+                    <p className="text-lg font-black text-blue-900 dark:text-blue-100 tracking-tight">Konfigurasi Produk Dipindahkan</p>
+                    <p className="text-sm font-bold text-blue-600 dark:text-blue-300 mt-1">Semua pengaturan produk dan harga sekarang tersentralisasi di menu "Produk & Harga"</p>
+                 </div>
+                 <button 
+                    onClick={() => window.location.href = '/products'}
+                    className="px-6 py-3 bg-blue-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg hover:scale-105 transition-all"
+                 >
+                    BUKA PRODUK
+                 </button>
+              </div>
            </div>
         </div>
 
