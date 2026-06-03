@@ -79,6 +79,14 @@ export default function Sidebar({ open, onClose, collapsed }) {
         <NavItem to="/attendance" icon="assignment_turned_in" label="Absensi Kurir" color="text-cyan-500" onClick={onClose} collapsed={collapsed} />
         <NavItem to="/shifts"     icon="schedule" label="Shift Kasir" color="text-violet-500" onClick={onClose} collapsed={collapsed} />
 
+        {/* Kasir bisa input kas toko dan pengeluaran */}
+        {(user?.role === 'kasir' || isAdmin) && (
+          <>
+            <NavItem to="/expenses"   icon="receipt_long" label="Biaya Toko" color="text-orange-500" onClick={onClose} collapsed={collapsed} />
+            <NavItem to="/cashflow"   icon="account_balance_wallet" label="Kas Toko" color="text-green-500" onClick={onClose} collapsed={collapsed} />
+          </>
+        )}
+
         {isAdmin && (
           <>
             <div className={clsx('pt-6 pb-2 px-3', collapsed && 'flex justify-center px-0')}>
@@ -87,8 +95,6 @@ export default function Sidebar({ open, onClose, collapsed }) {
             <NavItem to="/fleet"      icon="delivery_dining" label="Armada" color="text-purple-500" onClick={onClose} collapsed={collapsed} />
             <NavItem to="/inventory"  icon="waves" label="Inventori" color="text-blue-400" onClick={onClose} collapsed={collapsed} />
             <NavItem to="/products"   icon="inventory_2" label="Produk & Harga" color="text-teal-500" onClick={onClose} collapsed={collapsed} />
-            <NavItem to="/expenses"   icon="receipt_long" label="Biaya Toko" color="text-orange-500" onClick={onClose} collapsed={collapsed} />
-            <NavItem to="/cashflow"   icon="account_balance_wallet" label="Kas Toko" color="text-green-500" onClick={onClose} collapsed={collapsed} />
 
             <div className={clsx('pt-6 pb-2 px-3', collapsed && 'flex justify-center px-0')}>
               {collapsed ? <div className="w-8 h-px bg-gray-100 dark:bg-gray-800" /> : <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Administrator</p>}

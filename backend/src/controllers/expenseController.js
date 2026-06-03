@@ -17,7 +17,7 @@ exports.getAll = async (req, res) => {
       query += ` AND branch_id = $${params.length}`;
     }
     
-    query += ' ORDER BY date DESC';
+    query += ' ORDER BY created_at DESC';
     
     const result = await db.pool.query(query, params);
     res.json({ data: result.rows });
@@ -36,9 +36,9 @@ exports.create = async (req, res) => {
     }
     
     const result = await db.pool.query(
-      `INSERT INTO cash_flow (category, amount, type, branch_id, description, date) 
+      `INSERT INTO cash_flow (category, amount, type, branch_id, description, created_at) 
        VALUES ($1, $2, 'expense', $3, $4, $5) RETURNING *`,
-      [category, amount, branch_id, note, date]
+      [category, amount, branch_id, note, date || new Date()]
     );
     res.json({ data: result.rows[0] });
   } catch (err) {
