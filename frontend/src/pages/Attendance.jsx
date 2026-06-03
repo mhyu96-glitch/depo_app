@@ -213,9 +213,11 @@ export default function Attendance() {
       {/* Face Attendance Modal */}
       {showFaceAttendance && (
         <FaceAttendance
+          courierId={selectedCourier || null}
           type={faceAttendanceType}
           onSuccess={(data) => {
             setShowFaceAttendance(false);
+            setSelectedCourier('');
             loadData(); // Reload attendance list
             alert('Absensi wajah berhasil!');
           }}

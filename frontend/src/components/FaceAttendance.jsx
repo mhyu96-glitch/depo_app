@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Camera, MapPin, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { attendanceApi } from '../api';
+import { useAuth } from '../context/AuthContext';
 
-const FaceAttendance = ({ onSuccess, onCancel, type = 'check_in' }) => {
+const FaceAttendance = ({ onSuccess, onCancel, courierId = null, type = 'check_in' }) => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState(null);
@@ -97,12 +99,20 @@ const FaceAttendance = ({ onSuccess, onCancel, type = 'check_in' }) => {
       return;
     }
 
+    // Determine courier_id: use prop if provided, otherwise use user.courier_id for self-attendance
+    const effectiveCourierId = courierId || user?.courier_id || user?.id;
+    
+    if (!effectiveCourierId) {
+      setError('Courier ID tidak ditemukan. Hubungi administrator.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       const payload = {
-        type: type, // 'check_in' or 'check_out'
+        courier_id: effectiveCourierId,
         face_data: capturedImage,
         location_lat: location?.lat || null,
         location_lng: location?.lng || null,

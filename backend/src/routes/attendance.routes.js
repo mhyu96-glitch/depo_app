@@ -5,6 +5,7 @@ const { requireRole, requireBranchAccess } = require('../middleware/rbac');
 
 // Check-in/out dengan face recognition
 router.post('/checkin',  authenticate, requireBranchAccess, ctrl.checkIn);
+router.post('/face',     authenticate, requireBranchAccess, ctrl.checkIn); // Alias for face attendance
 router.post('/checkout', authenticate, ctrl.checkOut);
 
 // Get attendance

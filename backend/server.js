@@ -66,6 +66,7 @@ app.use('/api/procurement',  require('./src/routes/supplier.routes'));
 app.use('/api/shifts',       require('./src/routes/shift.routes'));
 app.use('/api/debts',        require('./src/routes/debt.routes'));
 
+app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
 // Handle SPA routing: serve index.html for any unknown routes (not starting with /api)
