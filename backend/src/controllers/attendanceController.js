@@ -172,26 +172,62 @@ exports.getTodayAttendance = async (req, res) => {
     const { branch_id } = req.query;
     const today = new Date().toISOString().split('T')[0];
 
-    let query = `
-      SELECT a.*, c.name as courier_name, u.name as created_by_name
-      FROM attendance a
-      LEFT JOIN couriers c ON a.courier_id = c.id
-      LEFT JOIN users u ON a.created_by = u.id
-      WHERE a.date = $1
-    `;
+    // Get available columns first
+    const schemaResult = await db.pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'attendance'
+    `);
     
-    const params = [today];
+    const availableColumns = schemaResult.rows.map(row => row.column_name);
+    
+    // Build query based on available columns
+    let baseSelect = 'a.*';
+    let joins = [];
+    
+    if (availableColumns.includes('courier_id')) {
+      joins.push('LEFT JOIN couriers c ON a.courier_id = c.id');
+      baseSelect = 'a.*, c.name as courier_name';
+    }
+    
+    if (availableColumns.includes('created_by')) {
+      joins.push('LEFT JOIN users u ON a.created_by = u.id');
+      baseSelect += ', u.name as created_by_name';
+    }
 
-    if (branch_id) {
-      query += ' AND a.branch_id = $2';
+    let query = `SELECT ${baseSelect} FROM attendance a ${joins.join(' ')} WHERE 1=1`;
+    const params = [];
+    let paramCount = 0;
+
+    // Add date filter - try different date column patterns
+    if (availableColumns.includes('date')) {
+      paramCount++;
+      query += ` AND a.date = $${paramCount}`;
+      params.push(today);
+    } else if (availableColumns.includes('created_at')) {
+      paramCount++;
+      query += ` AND DATE(a.created_at) = $${paramCount}`;
+      params.push(today);
+    }
+
+    if (branch_id && availableColumns.includes('branch_id')) {
+      paramCount++;
+      query += ` AND a.branch_id = $${paramCount}`;
       params.push(branch_id);
     }
 
-    query += ' ORDER BY a.check_in_time DESC';
+    // Order by available time columns
+    if (availableColumns.includes('check_in_time')) {
+      query += ' ORDER BY a.check_in_time DESC';
+    } else {
+      query += ' ORDER BY a.created_at DESC';
+    }
 
+    console.log('Today attendance query:', query);
     const result = await db.pool.query(query, params);
     res.json({ data: result.rows });
   } catch (err) {
+    console.error('Today attendance error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
