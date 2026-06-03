@@ -94,6 +94,13 @@ export default function Sidebar({ open, onClose, collapsed }) {
           </div>
         )}
 
+        {/* Debug extended info */}
+        {!collapsed && user && (
+          <div className="px-3 py-1 text-xs text-blue-600 bg-blue-50 rounded">
+            User: {user.username} | Role: {user.role} | isAdmin: {isAdmin ? 'true' : 'false'}
+          </div>
+        )}
+
         {isAdmin && (
           <>
             <div className={clsx('pt-6 pb-2 px-3', collapsed && 'flex justify-center px-0')}>
