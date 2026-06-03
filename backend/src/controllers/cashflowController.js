@@ -29,8 +29,17 @@ exports.getAll = async (req, res) => {
       query += ` AND created_at::date BETWEEN $${params.length - 1} AND $${params.length}`;
     }
     query += ' ORDER BY created_at DESC';
+    
     const result = await db.pool.query(query, params);
-    res.json({ data: result.rows });
+    
+    // Calculate summary
+    const total_income = result.rows.filter(row => row.type === 'income').reduce((sum, row) => sum + parseFloat(row.amount || 0), 0);
+    const total_expense = result.rows.filter(row => row.type === 'expense').reduce((sum, row) => sum + parseFloat(row.amount || 0), 0);
+    
+    res.json({ 
+      data: result.rows,
+      summary: { total_income, total_expense }
+    });
   } catch (err) {
     res.status(500).json({ message: 'Error', error: err.message });
   }

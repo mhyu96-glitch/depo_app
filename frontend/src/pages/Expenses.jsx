@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { expenseApi, dashboardApi } from '../api';
+import { useAuth } from '../context/AuthContext';
 import { 
   DollarSign, Plus, PieChart as PieIcon, History, 
   ArrowDownCircle, Calendar, Store, Tag, X,
@@ -26,6 +27,7 @@ const MI = ({ name, className = '', size = 20 }) => (
 );
 
 export default function Expenses() {
+  const { user } = useAuth();
   const [expenses, setExpenses] = useState([]);
   const [stats, setStats] = useState(null);
   const [branches, setBranches] = useState([]);
@@ -37,8 +39,8 @@ export default function Expenses() {
     setLoading(true);
     try {
       const [res, sRes, bRes] = await Promise.all([
-        expenseApi.getAll(),
-        expenseApi.getStats(),
+        expenseApi.getAll({ branch_id: user?.branch_id }),
+        expenseApi.getStats({ branch_id: user?.branch_id }),
         dashboardApi.getBranchComparison()
       ]);
       setExpenses(res.data.data);

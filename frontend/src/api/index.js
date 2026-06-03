@@ -187,8 +187,8 @@ export const inventoryApi = {
 
 // Expenses
 export const expenseApi = {
-  getAll:   () => api.get('/expenses'),
-  getStats: () => api.get('/expenses/stats'),
+  getAll:   (params) => api.get('/expenses', { params }),
+  getStats: (params) => api.get('/expenses/stats', { params }),
   create:   (data) => api.post('/expenses', data),
 };
 
