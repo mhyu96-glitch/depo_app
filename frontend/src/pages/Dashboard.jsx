@@ -73,8 +73,8 @@ const WidgetCard = ({ title, value, sub, icon: Icon, color, link, trend = null }
 );
 
 export default function Dashboard() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { user, isAdmin: isAdminRole } = useAuth();
+  const isAdmin = isAdminRole; // Gunakan dari context, sudah include branch_admin
   const [widgets, setWidgets]   = useState(null);
   const [trend, setTrend]       = useState([]);
   const [dailyTrend, setDailyTrend] = useState([]);

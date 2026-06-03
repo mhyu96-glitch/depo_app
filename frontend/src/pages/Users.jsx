@@ -108,8 +108,8 @@ export default function Users() {
     e.preventDefault();
     setRollingLoading(true);
     try {
-      // Jika admin, langsung ubah role-nya dan create courier
-      if (rollingUser.role === 'admin') {
+      // Jika admin atau branch_admin, langsung ubah role-nya dan create courier
+      if (rollingUser.role === 'admin' || rollingUser.role === 'branch_admin') {
         // Buat data courier dulu
         const courierRes = await courierApi.create({
           name: rollingUser.name,
@@ -148,8 +148,8 @@ export default function Users() {
     e.preventDefault();
     setCourierToKasirLoading(true);
     try {
-      // Jika admin, langsung ubah role-nya menjadi kasir
-      if (rollingCourier.role === 'admin') {
+      // Jika admin atau branch_admin, langsung ubah role-nya menjadi kasir
+      if (rollingCourier.role === 'admin' || rollingCourier.role === 'branch_admin') {
         await userApi.update(rollingCourier.id, {
           role: 'kasir',
           username: courierToKasirForm.username,
@@ -243,8 +243,8 @@ export default function Users() {
                   </td>
                   <td className="text-right">
                     <div className="flex justify-end gap-1">
-                      {/* Admin → Kasir / Kurir */}
-                      {u.role === 'admin' && u.is_active && (
+                      {/* Admin/Branch Admin → Kasir / Kurir */}
+                      {(u.role === 'admin' || u.role === 'branch_admin') && u.is_active && (
                         <>
                           <button 
                             onClick={() => { setRollingUser(u); setRollingForm({ phone: '', base_salary: '' }); }}
@@ -415,7 +415,7 @@ export default function Users() {
                 <div>
                   <p className="font-black text-purple-900 dark:text-purple-100">{rollingUser.name}</p>
                   <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">
-                    {rollingUser.role === 'admin' ? 'Admin' : 'Kasir'} · akan dijadikan Kurir
+                    {(rollingUser.role === 'admin' || rollingUser.role === 'branch_admin') ? 'Admin' : 'Kasir'} · akan dijadikan Kurir
                   </p>
                 </div>
               </div>
@@ -443,7 +443,7 @@ export default function Users() {
 
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
                 <p className="text-xs font-bold text-amber-700 leading-relaxed">
-                  {rollingUser.role === 'admin' 
+                  {(rollingUser.role === 'admin' || rollingUser.role === 'branch_admin')
                     ? 'Akun admin akan berubah menjadi kurir. Data kurir baru akan dibuat dan role user diubah menjadi kurir.'
                     : 'Akun kasir tetap aktif. Data kurir baru akan dibuat dan dihubungkan ke akun ini.'
                   }
@@ -486,7 +486,7 @@ export default function Users() {
                 <div>
                   <p className="font-black text-blue-900 dark:text-blue-100">{rollingCourier.name}</p>
                   <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
-                    {rollingCourier.role === 'admin' ? 'Admin' : 'Kurir'} · akan dijadikan Kasir
+                    {(rollingCourier.role === 'admin' || rollingCourier.role === 'branch_admin') ? 'Admin' : 'Kurir'} · akan dijadikan Kasir
                   </p>
                 </div>
               </div>
@@ -505,11 +505,11 @@ export default function Users() {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">
-                  Password Login Kasir {rollingCourier.role === 'admin' && '(Opsional - kosongkan jika tidak ingin mengubah)'}
+                  Password Login Kasir {(rollingCourier.role === 'admin' || rollingCourier.role === 'branch_admin') && '(Opsional - kosongkan jika tidak ingin mengubah)'}
                 </label>
                 <input
                   type="password"
-                  required={rollingCourier.role !== 'admin'}
+                  required={(rollingCourier.role !== 'admin' && rollingCourier.role !== 'branch_admin')}
                   className="input w-full py-4 px-5"
                   placeholder="••••••••"
                   value={courierToKasirForm.password}
@@ -519,7 +519,7 @@ export default function Users() {
 
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
                 <p className="text-xs font-bold text-amber-700 leading-relaxed">
-                  {rollingCourier.role === 'admin'
+                  {(rollingCourier.role === 'admin' || rollingCourier.role === 'branch_admin')
                     ? 'Role admin akan diubah menjadi kasir. Username dan password akan digunakan untuk login sebagai kasir.'
                     : 'Akun kasir baru akan dibuat dan dihubungkan ke data kurir ini. Kurir tetap bisa login dengan akun barunya.'
                   }
