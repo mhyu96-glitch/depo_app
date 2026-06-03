@@ -147,17 +147,19 @@ export default function Couriers() {
         <div className="flex justify-center p-12"><Loader2 size={32} className="animate-spin text-primary-500" /></div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {couriers.map((c) => (
-            <div key={c.id} className={`card p-6 space-y-4 hover:shadow-md transition-all ${!c.is_active ? 'opacity-60 bg-gray-50' : ''}`}>
+          {couriers.map((c) => {
+            console.log('Courier data:', c.name, 'is_active:', c.is_active, 'type:', typeof c.is_active);
+            return (
+            <div key={c.id} className={`card p-6 space-y-4 hover:shadow-md transition-all ${!(c.is_active === true || c.is_active === 1) ? 'opacity-60 bg-gray-50' : ''}`}>
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold ${c.is_active ? 'bg-gradient-to-br from-primary-500 to-primary-600' : 'bg-gray-400'}`}>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold ${(c.is_active === true || c.is_active === 1) ? 'bg-gradient-to-br from-primary-500 to-primary-600' : 'bg-gray-400'}`}>
                     {(c.name?.[0] || '?').toUpperCase()}
                   </div>
                   <div>
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white">{c.name}</h3>
                     <div className="flex items-center gap-2 mt-1">
-                      {c.is_active ? (
+                      {(c.is_active === true || c.is_active === 1) ? (
                         <span className="badge-green"><CheckCircle size={10} /> Aktif</span>
                       ) : (
                         <span className="badge-gray"><XCircle size={10} /> Nonaktif</span>
@@ -172,7 +174,7 @@ export default function Couriers() {
                   <button onClick={() => handleEdit(c)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl text-gray-400 transition-colors">
                     <Edit2 size={18} />
                   </button>
-                  {c.is_active && (
+                  {(c.is_active === true || c.is_active === 1) && (
                     <>
                       <button 
                         onClick={() => { setRollingCourier(c); setRollingForm({ username: c.name.toLowerCase().replace(/\s+/g, '_'), password: '' }); }}
@@ -210,7 +212,8 @@ export default function Couriers() {
                 </p>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
