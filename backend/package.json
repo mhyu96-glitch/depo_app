@@ -4,8 +4,9 @@
   "description": "Backend API for Depo Air Minum Management System",
   "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "node index.js",
+    "dev": "nodemon server.js",
+    "railway": "node index.js"
   },
   "dependencies": {
     "axios": "^1.16.0",

@@ -88,10 +88,13 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-// For local development
+// Only start server if this file is run directly (not required)
 if (require.main === module) {
-  app.listen(PORT, () => console.log(`🚀 Depo Air Minum Server running on port ${PORT}`));
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Depo Air Minum Server running on http://0.0.0.0:${PORT}`);
+    console.log(`🏥 Health check: http://0.0.0.0:${PORT}/api/health`);
+  });
 }
 
-// For Vercel serverless
+// Export for external use (Railway index.js or Vercel)
 module.exports = app;
