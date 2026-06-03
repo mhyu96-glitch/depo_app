@@ -31,7 +31,13 @@ exports.getAll = async (req, res) => {
   }
 
   try {
-    const { search, branch_id, limit = 50, offset = 0 } = req.query;
+    let { search, branch_id, limit = 50, offset = 0 } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat pelanggan cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     let query = 'SELECT * FROM customers WHERE 1=1';
     const params = [];
 
@@ -94,7 +100,13 @@ exports.create = async (req, res) => {
     return res.json({ message: 'Customer created (Demo)', data: newCust });
   }
   try {
-    const { name, whatsapp, address, branch_id } = req.body;
+    let { name, whatsapp, address, branch_id } = req.body;
+    
+    // Branch filtering: branch_admin hanya bisa create untuk cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const voucher_code = name.substring(0, 3).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
     // 10-digit numeric barcode code
     const barcode_code = String(Math.floor(1000000000 + Math.random() * 9000000000));

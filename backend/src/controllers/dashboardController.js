@@ -2,7 +2,12 @@ const db = require('../config/database');
 
 exports.getWidgets = async (req, res) => {
   try {
-    const { branch_id } = req.query;
+    // Branch filtering: branch_admin hanya lihat cabang sendiri, superadmin/admin lihat semua
+    let { branch_id } = req.query;
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id; // Force branch_admin hanya lihat cabangnya
+    }
+    
     const bidFilter = branch_id ? 'AND branch_id = $1' : '';
     const bidParams = branch_id ? [branch_id] : [];
 
@@ -69,7 +74,12 @@ exports.getWidgets = async (req, res) => {
 
 exports.getMonthlySalesTrend = async (req, res) => {
   try {
-    const { branch_id } = req.query;
+    // Branch filtering: branch_admin hanya lihat cabang sendiri
+    let { branch_id } = req.query;
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const bidFilter = branch_id ? 'AND branch_id = $1' : '';
     const bidParams = branch_id ? [branch_id] : [];
 
@@ -94,7 +104,12 @@ exports.getMonthlySalesTrend = async (req, res) => {
 
 exports.getDailySalesTrend = async (req, res) => {
   try {
-    const { branch_id } = req.query;
+    // Branch filtering: branch_admin hanya lihat cabang sendiri
+    let { branch_id } = req.query;
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const bidFilter = branch_id ? 'AND branch_id = $1' : '';
     const bidParams = branch_id ? [branch_id] : [];
 
@@ -118,6 +133,12 @@ exports.getDailySalesTrend = async (req, res) => {
 
 exports.getBranchComparison = async (req, res) => {
   try {
+    // Branch comparison hanya untuk superadmin/admin
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      // Branch admin tidak perlu lihat perbandingan cabang, return empty
+      return res.json({ data: [] });
+    }
+    
     const result = await db.pool.query(
       `SELECT b.name as branch_name, COALESCE(SUM(t.total_amount), 0) as total_sales
        FROM branches b
@@ -132,7 +153,12 @@ exports.getBranchComparison = async (req, res) => {
 
 exports.getAIProjection = async (req, res) => {
   try {
-    const { branch_id } = req.query;
+    // Branch filtering: branch_admin hanya lihat cabang sendiri
+    let { branch_id } = req.query;
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const bidFilter = branch_id ? 'AND branch_id = $1' : '';
     const bidParams = branch_id ? [branch_id] : [];
 
@@ -160,7 +186,12 @@ exports.getAIProjection = async (req, res) => {
 
 exports.getBusinessHealth = async (req, res) => {
   try {
-    const { branch_id } = req.query;
+    // Branch filtering: branch_admin hanya lihat cabang sendiri
+    let { branch_id } = req.query;
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const bidFilter = branch_id ? 'AND branch_id = $1' : '';
     const bidParams = branch_id ? [branch_id] : [];
 

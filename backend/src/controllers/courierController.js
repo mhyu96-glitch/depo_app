@@ -2,7 +2,13 @@ const db = require('../config/database');
 
 exports.getAll = async (req, res) => {
   try {
-    const { branch_id } = req.query;
+    let { branch_id } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat kurir cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     let query = `
       SELECT c.*, b.name AS branch_name
       FROM couriers c
@@ -33,8 +39,14 @@ exports.getById = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const { name, phone, branch_id, base_salary } = req.body;
+    let { name, phone, branch_id, base_salary } = req.body;
     if (!name) return res.status(400).json({ message: 'Nama kurir wajib diisi' });
+
+    // Branch filtering: branch_admin hanya bisa create untuk cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     if (!branch_id) return res.status(400).json({ message: 'Cabang wajib dipilih' });
 
     const result = await db.pool.query(

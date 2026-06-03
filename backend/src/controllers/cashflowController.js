@@ -11,7 +11,13 @@ const DUMMY_CASHFLOW = [
 exports.getAll = async (req, res) => {
   if (process.env.DEMO_MODE === 'true') return res.json({ data: DUMMY_CASHFLOW });
   try {
-    const { branch_id, start_date, end_date } = req.query;
+    let { branch_id, start_date, end_date } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat cashflow cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     let query = 'SELECT * FROM cash_flow WHERE 1=1';
     const params = [];
     if (branch_id) {
@@ -33,7 +39,13 @@ exports.getAll = async (req, res) => {
 exports.create = async (req, res) => {
   if (process.env.DEMO_MODE === 'true') return res.json({ message: 'Created (Demo)', data: { id: 99, ...req.body } });
   try {
-    const { type, category, description, amount, branch_id } = req.body;
+    let { type, category, description, amount, branch_id } = req.body;
+    
+    // Branch filtering: branch_admin hanya bisa create untuk cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const result = await db.pool.query(
       'INSERT INTO cash_flow (type, category, description, amount, branch_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [type, category, description, amount, branch_id]

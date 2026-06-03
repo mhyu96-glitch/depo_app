@@ -90,15 +90,20 @@ export default function Dashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const params = isAdmin ? {} : { branch_id: user?.branch_id };
+      // Branch filtering: branch admin hanya kirim branch_id mereka, superadmin tidak perlu
+      const params = {};
+      if (user?.role === 'branch_admin' || user?.role === 'kasir') {
+        params.branch_id = user.branch_id;
+      }
+      
       const [w, t, dt, b, l, ap, h] = await Promise.all([
         dashboardApi.getWidgets(params),
         dashboardApi.getSalesTrend(params),
         dashboardApi.getDailySalesTrend(params),
-        isAdmin ? dashboardApi.getBranchComparison() : Promise.resolve({ data: { data: [] } }),
+        (user?.role === 'superadmin' || user?.role === 'admin') ? dashboardApi.getBranchComparison() : Promise.resolve({ data: { data: [] } }),
         transactionApi.getAll({ ...params, limit: 5 }),
-        dashboardApi.getAIProjection(),
-        dashboardApi.getBusinessHealth()
+        dashboardApi.getAIProjection(params),
+        dashboardApi.getBusinessHealth(params)
       ]);
       setWidgets(w.data.data);
       setTrend(t.data.data);

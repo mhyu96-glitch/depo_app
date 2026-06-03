@@ -3,7 +3,13 @@ const auditController = require('./auditController');
 
 exports.getAll = async (req, res) => {
   try {
-    const { branch_id, start_date, end_date, has_voucher, voucher_type, voucher_code } = req.query;
+    let { branch_id, start_date, end_date, has_voucher, voucher_type, voucher_code } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat transaksi cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     let query = 'SELECT * FROM transactions WHERE 1=1';
     const params = [];
     

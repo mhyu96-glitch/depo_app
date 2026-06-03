@@ -1,8 +1,21 @@
 const { Pool } = require('pg');
 
+// Load environment variables
+require('dotenv').config();
+
+// Clean the connection string and add our SSL config
+let connectionString = process.env.DATABASE_URL || 'postgresql://postgres.sxbzseesvyatezqlftis:mwahyu29121996@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
+
+// Remove sslmode parameter if present
+connectionString = connectionString.replace(/[?&]sslmode=[^&]*/g, '');
+
+console.log('🔗 Connecting to database...');
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres.sxbzseesvyatezqlftis:mwahyu29121996@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres',
-  ssl: { rejectUnauthorized: false }
+  connectionString: connectionString,
+  ssl: { 
+    rejectUnauthorized: false 
+  }
 });
 
 async function setupAttendanceTable() {

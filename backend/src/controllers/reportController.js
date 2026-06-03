@@ -2,7 +2,13 @@ const db = require('../config/database');
 
 exports.getSalesReport = async (req, res) => {
   try {
-    const { start_date, end_date, branch_id } = req.query;
+    let { start_date, end_date, branch_id } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat report cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     let query = `
       SELECT created_at::date as date, SUM(total_amount) as total_sales, COUNT(*) as transaction_count,
       (SELECT SUM(quantity) FROM transaction_items WHERE transaction_id IN (SELECT id FROM transactions WHERE created_at::date = t.created_at::date)) as gallon_count
@@ -20,7 +26,13 @@ exports.getSalesReport = async (req, res) => {
 
 exports.getSalaryReport = async (req, res) => {
   try {
-    const { month, year, branch_id } = req.query;
+    let { month, year, branch_id } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat salary report cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const result = await db.pool.query(
       `SELECT c.id as courier_id, c.name as courier_name, COUNT(t.id) as delivery_count, SUM(t.commission_amount) as total_commission
        FROM couriers c
@@ -37,7 +49,13 @@ exports.getSalaryReport = async (req, res) => {
 
 exports.getCashFlowReport = async (req, res) => {
   try {
-    const { start_date, end_date, branch_id } = req.query;
+    let { start_date, end_date, branch_id } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat cashflow report cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const result = await db.pool.query(
       `SELECT created_at::date as date, 
        SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income,
@@ -54,7 +72,13 @@ exports.getCashFlowReport = async (req, res) => {
 
 exports.getDebtReport = async (req, res) => {
   try {
-    const { branch_id } = req.query;
+    let { branch_id } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat debt report cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const result = await db.pool.query(
       "SELECT * FROM transactions WHERE payment_status != 'paid' AND branch_id = $1",
       [branch_id]
@@ -67,7 +91,13 @@ exports.getDebtReport = async (req, res) => {
 
 exports.getProfitLossReport = async (req, res) => {
   try {
-    const { month, year, branch_id } = req.query;
+    let { month, year, branch_id } = req.query;
+    
+    // Branch filtering: branch_admin hanya lihat profit loss report cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+    }
+    
     const sales = await db.pool.query("SELECT SUM(total_amount) as total FROM transactions WHERE branch_id=$1 AND EXTRACT(MONTH FROM created_at)=$2 AND EXTRACT(YEAR FROM created_at)=$3", [branch_id, month, year]);
     const expenses = await db.pool.query("SELECT SUM(amount) as total FROM cash_flow WHERE branch_id=$1 AND type='expense' AND EXTRACT(MONTH FROM created_at)=$2 AND EXTRACT(YEAR FROM created_at)=$3", [branch_id, month, year]);
     
