@@ -87,20 +87,6 @@ export default function Sidebar({ open, onClose, collapsed }) {
           </>
         )}
 
-        {/* Debug untuk kasir - hapus setelah selesai testing */}
-        {user?.role === 'kasir' && !collapsed && (
-          <div className="px-3 py-2 text-xs text-green-600 bg-green-50 rounded">
-            KASIR MENU AKTIF - Role: {user.role}
-          </div>
-        )}
-
-        {/* Debug extended info */}
-        {!collapsed && user && (
-          <div className="px-3 py-1 text-xs text-blue-600 bg-blue-50 rounded">
-            User: {user.username} | Role: {user.role} | isAdmin: {isAdmin ? 'true' : 'false'}
-          </div>
-        )}
-
         {isAdmin && (
           <>
             <div className={clsx('pt-6 pb-2 px-3', collapsed && 'flex justify-center px-0')}>

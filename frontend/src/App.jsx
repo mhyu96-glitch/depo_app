@@ -74,8 +74,8 @@ const AppRoutes = () => {
         <Route path="fleet"              element={<PrivateRoute adminOnly><Fleet /></PrivateRoute>} />
         <Route path="inventory"          element={<PrivateRoute adminOnly><Inventory /></PrivateRoute>} />
         <Route path="products"           element={<PrivateRoute adminOnly><Products /></PrivateRoute>} />
-        <Route path="expenses"           element={<PrivateRoute adminOnly><Expenses /></PrivateRoute>} />
-        <Route path="cashflow"           element={<PrivateRoute adminOnly><CashFlow /></PrivateRoute>} />
+        <Route path="expenses"           element={<Expenses />} />
+        <Route path="cashflow"           element={<CashFlow />} />
         <Route path="couriers"           element={<PrivateRoute adminOnly><Couriers /></PrivateRoute>} />
         <Route path="branches"           element={<PrivateRoute adminOnly><Branches /></PrivateRoute>} />
         <Route path="users"              element={<PrivateRoute adminOnly><Users /></PrivateRoute>} />
