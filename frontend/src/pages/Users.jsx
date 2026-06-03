@@ -99,6 +99,11 @@ export default function Users() {
   const [rollingForm, setRollingForm] = useState({ phone: '', base_salary: '' });
   const [rollingLoading, setRollingLoading] = useState(false);
 
+  // ── Rolling: kurir → kasir ──────────────────────────────
+  const [rollingCourier, setRollingCourier] = useState(null);
+  const [courierToKasirForm, setCourierToKasirForm] = useState({ username: '', password: '' });
+  const [courierToKasirLoading, setCourierToKasirLoading] = useState(false);
+
   const handleRollingToCourier = async (e) => {
     e.preventDefault();
     setRollingLoading(true);
@@ -116,6 +121,26 @@ export default function Users() {
       alert(err.response?.data?.message || 'Gagal rolling ke kurir');
     } finally {
       setRollingLoading(false);
+    }
+  };
+
+  const handleCourierToKasir = async (e) => {
+    e.preventDefault();
+    setCourierToKasirLoading(true);
+    try {
+      const res = await userApi.courierToKasir({
+        courier_id: rollingCourier.courier_id,
+        username: courierToKasirForm.username,
+        password: courierToKasirForm.password
+      });
+      alert(res.data.message);
+      setRollingCourier(null);
+      setCourierToKasirForm({ username: '', password: '' });
+      loadData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal rolling ke kasir');
+    } finally {
+      setCourierToKasirLoading(false);
     }
   };
 
@@ -194,6 +219,15 @@ export default function Users() {
                           title="Jadikan Kurir"
                         >
                           <Truck size={16} />
+                        </button>
+                      )}
+                      {u.role === 'kurir' && u.is_active && u.courier_id && (
+                        <button 
+                          onClick={() => { setRollingCourier(u); setCourierToKasirForm({ username: '', password: '' }); }}
+                          className="p-2 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg text-gray-400 hover:text-purple-500 transition-colors"
+                          title="Jadikan Kasir"
+                        >
+                          <UserCog size={16} />
                         </button>
                       )}
                       <button onClick={() => handleEdit(u)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-gray-400 transition-colors">
@@ -366,6 +400,77 @@ export default function Users() {
                 <button type="submit" disabled={rollingLoading} className="px-8 py-3 rounded-2xl bg-purple-500 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-purple-500/20 hover:scale-105 transition-all flex items-center gap-2">
                   {rollingLoading ? <Loader2 size={16} className="animate-spin" /> : <Truck size={16} />}
                   Jadikan Kurir
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rolling: Kurir → Kasir */}
+      {rollingCourier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-in">
+            <div className="p-6 border-b dark:border-gray-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <RefreshCw size={18} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black">Rolling Jabatan</h2>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Kurir → Kasir</p>
+                </div>
+              </div>
+              <button onClick={() => setRollingCourier(null)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+            </div>
+            <form onSubmit={handleCourierToKasir} className="p-8 space-y-6">
+              <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500 text-white flex items-center justify-center font-black">
+                  {(rollingCourier.name?.[0] || '?').toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-black text-blue-900 dark:text-blue-100">{rollingCourier.name}</p>
+                  <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
+                    Kurir · akan dijadikan Kasir
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Username Login Kasir</label>
+                <input
+                  type="text"
+                  required
+                  className="input w-full py-4 px-5"
+                  placeholder="kasir.andi"
+                  value={courierToKasirForm.username}
+                  onChange={e => setCourierToKasirForm({ ...courierToKasirForm, username: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Password Login Kasir</label>
+                <input
+                  type="password"
+                  required
+                  className="input w-full py-4 px-5"
+                  placeholder="••••••••"
+                  value={courierToKasirForm.password}
+                  onChange={e => setCourierToKasirForm({ ...courierToKasirForm, password: e.target.value })}
+                />
+              </div>
+
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
+                <p className="text-xs font-bold text-amber-700 leading-relaxed">
+                  Akun kasir baru akan dibuat dan dihubungkan ke data kurir ini. Kurir tetap bisa login dengan akun barunya.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-4 pt-4 border-t dark:border-gray-800">
+                <button type="button" onClick={() => setRollingCourier(null)} className="px-6 py-3 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-600 font-black text-[10px] uppercase tracking-widest">Batal</button>
+                <button type="submit" disabled={courierToKasirLoading} className="px-8 py-3 rounded-2xl bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 hover:scale-105 transition-all flex items-center gap-2">
+                  {courierToKasirLoading ? <Loader2 size={16} className="animate-spin" /> : <UserCog size={16} />}
+                  Jadikan Kasir
                 </button>
               </div>
             </form>
