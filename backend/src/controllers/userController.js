@@ -3,11 +3,24 @@ const bcrypt = require('bcryptjs');
 
 exports.getAll = async (req, res) => {
   try {
-    const result = await db.pool.query(
-      `SELECT u.*, b.name as branch_name,
+    let query = `
+      SELECT u.*, b.name as branch_name,
         (SELECT id FROM couriers WHERE user_id = u.id AND is_active = true LIMIT 1) as courier_id
-       FROM users u LEFT JOIN branches b ON u.branch_id = b.id ORDER BY u.id`
-    );
+      FROM users u 
+      LEFT JOIN branches b ON u.branch_id = b.id 
+      WHERE 1=1
+    `;
+    const params = [];
+
+    // Branch admin hanya bisa lihat user di cabangnya
+    if (req.user.role === 'branch_admin') {
+      params.push(req.user.branch_id);
+      query += ` AND (u.branch_id = $${params.length} OR u.branch_id IS NULL)`;
+    }
+
+    query += ' ORDER BY u.id';
+
+    const result = await db.pool.query(query, params);
     res.json({ data: result.rows });
   } catch (err) {
     res.status(500).json({ message: 'Error', error: err.message });

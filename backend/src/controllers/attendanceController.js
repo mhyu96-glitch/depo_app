@@ -5,10 +5,16 @@ exports.checkIn = async (req, res) => {
   try {
     const { courier_id, face_data, location_lat, location_lng, device_info } = req.body;
     const today = new Date().toISOString().split('T')[0];
+    const currentTime = new Date();
+
+    // Validation
+    if (!courier_id) {
+      return res.status(400).json({ message: 'Courier ID wajib diisi' });
+    }
 
     // Check if already checked in today
     const existing = await db.pool.query(
-      'SELECT * FROM attendance WHERE courier_id = $1 AND date = $2',
+      'SELECT * FROM attendance WHERE courier_id = $1 AND DATE(check_in_time) = $2',
       [courier_id, today]
     );
 
@@ -24,21 +30,62 @@ exports.checkIn = async (req, res) => {
       face_verified = true;
     }
 
-    // Create attendance record
-    const result = await db.pool.query(
-      `INSERT INTO attendance 
-       (courier_id, branch_id, date, check_in_time, face_data, face_verified, location_lat, location_lng, device_info, created_by) 
-       VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7, $8, $9) 
-       RETURNING *`,
-      [courier_id, req.user.branch_id, today, face_data, face_verified, location_lat, location_lng, device_info, req.user.id]
-    );
+    // Create attendance record with backward compatibility
+    let insertQuery, insertParams;
+    
+    // Try new schema first (with separate check_in_time and check_out_time)
+    try {
+      insertQuery = `
+        INSERT INTO attendance 
+        (courier_id, branch_id, date, check_in_time, face_data, face_verified, location_lat, location_lng, device_info, created_by) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+        RETURNING *
+      `;
+      insertParams = [
+        courier_id, 
+        req.user.branch_id || 1, 
+        today, 
+        currentTime, 
+        face_data, 
+        face_verified, 
+        location_lat, 
+        location_lng, 
+        device_info, 
+        req.user.id
+      ];
+      
+      const result = await db.pool.query(insertQuery, insertParams);
+      
+      return res.json({ 
+        message: 'Absensi wajah berhasil!', 
+        data: result.rows[0] 
+      });
+      
+    } catch (schemaError) {
+      // Fallback to old schema if new columns don't exist
+      console.log('Trying fallback schema for attendance...');
+      
+      insertQuery = `
+        INSERT INTO attendance (courier_id, branch_id, date, status, created_by) 
+        VALUES ($1, $2, $3, 'present', $4) 
+        RETURNING *
+      `;
+      insertParams = [courier_id, req.user.branch_id || 1, today, req.user.id];
+      
+      const result = await db.pool.query(insertQuery, insertParams);
+      
+      return res.json({ 
+        message: 'Absensi berhasil (mode kompatibilitas)', 
+        data: result.rows[0] 
+      });
+    }
 
-    res.json({ 
-      message: 'Check-in berhasil', 
-      data: result.rows[0] 
-    });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error('Attendance error:', err);
+    res.status(500).json({ 
+      message: 'Gagal menyimpan absensi', 
+      error: err.message 
+    });
   }
 };
 

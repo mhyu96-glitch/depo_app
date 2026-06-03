@@ -99,8 +99,18 @@ const FaceAttendance = ({ onSuccess, onCancel, courierId = null, type = 'check_i
       return;
     }
 
-    // Determine courier_id: use prop if provided, otherwise use user.courier_id for self-attendance
-    const effectiveCourierId = courierId || user?.courier_id || user?.id;
+    // Determine courier_id: use prop if provided, otherwise use user.courier_id or user.id
+    let effectiveCourierId = courierId;
+    
+    if (!effectiveCourierId) {
+      // Try to get courier_id from user object
+      if (user?.courier_id) {
+        effectiveCourierId = user.courier_id;
+      } else if (user?.id) {
+        // Fallback to user.id if no courier_id (for admin doing attendance)
+        effectiveCourierId = user.id;
+      }
+    }
     
     if (!effectiveCourierId) {
       setError('Courier ID tidak ditemukan. Hubungi administrator.');
@@ -119,6 +129,11 @@ const FaceAttendance = ({ onSuccess, onCancel, courierId = null, type = 'check_i
         device_info: navigator.userAgent
       };
 
+      console.log('Submitting attendance with payload:', { 
+        ...payload, 
+        face_data: '[IMAGE_DATA]' // Don't log actual image data
+      });
+
       const response = await attendanceApi.faceAttendance(payload);
       
       setMessage(response.data.message || 'Absensi berhasil!');
@@ -127,7 +142,9 @@ const FaceAttendance = ({ onSuccess, onCancel, courierId = null, type = 'check_i
       }, 1500);
       
     } catch (err) {
-      setError(err.response?.data?.message || 'Gagal submit absensi');
+      console.error('Face attendance error:', err.response?.data || err.message);
+      const errorMsg = err.response?.data?.message || 'Gagal submit absensi. Periksa koneksi internet.';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
