@@ -120,6 +120,7 @@ export default function Sidebar({ open, onClose, collapsed }) {
                 <NavItem to="/reports/cashflow"    icon="swap_horiz" label="Arus Kas" color="text-blue-500" onClick={onClose} />
                 <NavItem to="/reports/debt"        icon="error_outline" label="Hutang" color="text-red-500" onClick={onClose} />
                 <NavItem to="/reports/profit-loss" icon="analytics" label="Laba Rugi" color="text-indigo-500" onClick={onClose} />
+                <NavItem to="/reports/voucher"     icon="local_offer" label="Kupon & Voucher" color="text-purple-500" onClick={onClose} />
               </NavGroup>
             )}
 

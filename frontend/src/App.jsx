@@ -25,6 +25,7 @@ import SalaryReport    from './pages/reports/SalaryReport';
 import CashFlowReport  from './pages/reports/CashFlowReport';
 import DebtReport      from './pages/reports/DebtReport';
 import ProfitLoss      from './pages/reports/ProfitLoss';
+import VoucherReport   from './pages/reports/VoucherReport';
 import Expenses        from './pages/Expenses';
 import Maps            from './pages/Maps';
 import AssetHealth     from './pages/AssetHealth';
@@ -84,6 +85,7 @@ const AppRoutes = () => {
         <Route path="reports/cashflow"   element={<PrivateRoute superAdminOnly><CashFlowReport /></PrivateRoute>} />
         <Route path="reports/debt"       element={<PrivateRoute superAdminOnly><DebtReport /></PrivateRoute>} />
         <Route path="reports/profit-loss"element={<PrivateRoute superAdminOnly><ProfitLoss /></PrivateRoute>} />
+        <Route path="reports/voucher"    element={<PrivateRoute superAdminOnly><VoucherReport /></PrivateRoute>} />
         <Route path="analytics"          element={<PrivateRoute adminOnly><Analytics /></PrivateRoute>} />
         <Route path="maps"               element={<PrivateRoute adminOnly><Maps /></PrivateRoute>} />
         <Route path="health"             element={<PrivateRoute adminOnly><AssetHealth /></PrivateRoute>} />
