@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Camera, MapPin, CheckCircle, XCircle, Loader } from 'lucide-react';
-import api from '../services/api';
+import { attendanceApi } from '../api';
 
 const FaceAttendance = ({ onSuccess, onCancel, type = 'check_in' }) => {
   const [loading, setLoading] = useState(false);
@@ -109,7 +109,7 @@ const FaceAttendance = ({ onSuccess, onCancel, type = 'check_in' }) => {
         device_info: navigator.userAgent
       };
 
-      const response = await api.post('/attendance/face', payload);
+      const response = await attendanceApi.faceAttendance(payload);
       
       setMessage(response.data.message || 'Absensi berhasil!');
       setTimeout(() => {

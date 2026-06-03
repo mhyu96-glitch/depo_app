@@ -113,6 +113,7 @@ export const attendanceApi = {
   getAll:       (params) => api.get('/attendance', { params }),
   getTodayPresent:(params) => api.get('/attendance/today', { params }),
   checkIn:      (data)   => api.post('/attendance', data),
+  faceAttendance: (data) => api.post('/attendance/face', data),
   remove:       (id)     => api.delete(`/attendance/${id}`),
 };
 
