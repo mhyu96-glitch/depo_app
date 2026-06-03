@@ -7,6 +7,7 @@ router.get('/', authenticate, requireBranchAccess, ctrl.getAll);
 router.get('/all-deliveries', authenticate, ctrl.getAllDeliveries);
 router.get('/:id', authenticate, ctrl.getById);
 router.post('/', authenticate, requireBranchAccess, ctrl.create);
+router.post('/:id/request-delete', authenticate, ctrl.requestDelete);
 router.get('/courier/:courierId', authenticate, ctrl.getDeliveries);
 router.patch('/:id/delivery-status', authenticate, ctrl.updateDeliveryStatus);
 router.patch('/:id/claim', authenticate, ctrl.claimTask);

@@ -235,3 +235,54 @@ exports.updateDeliveryStatus = async (req, res) => {
     res.status(500).json({ message: 'Error', error: err.message });
   }
 };
+
+exports.requestDelete = async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  
+  try {
+    // Check if transaction exists and belongs to user's branch (for kasir/branch_admin)
+    let checkQuery = 'SELECT * FROM transactions WHERE id = $1';
+    const checkParams = [id];
+    
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      checkQuery += ' AND branch_id = $2';
+      checkParams.push(req.user.branch_id);
+    }
+    
+    const transaction = await db.pool.query(checkQuery, checkParams);
+    if (transaction.rows.length === 0) {
+      return res.status(404).json({ message: 'Transaksi tidak ditemukan atau bukan milik cabang Anda' });
+    }
+
+    // Check if already requested
+    if (transaction.rows[0].delete_requested) {
+      return res.status(400).json({ message: 'Permintaan penghapusan sudah pernah diajukan' });
+    }
+
+    // Mark as delete requested
+    await db.pool.query(
+      'UPDATE transactions SET delete_requested = true, delete_reason = $1, delete_requested_by = $2, delete_requested_at = NOW() WHERE id = $3',
+      [reason || 'Delete request from kasir', req.user.id, id]
+    );
+
+    // Log audit trail
+    await auditController.log(
+      req.user?.username || req.user?.name || 'User', 
+      'Request Delete Transaction', 
+      transaction.rows[0].invoice_number, 
+      `Reason: ${reason || 'Delete request from kasir'}`, 
+      req.ip
+    );
+
+    // TODO: Send notification to admin (could be implemented later)
+    // For now, admins can check via transaction list or dedicated approval page
+
+    res.json({ 
+      message: 'Permintaan penghapusan berhasil dikirim ke admin untuk approval',
+      data: { transaction_id: id, status: 'pending_approval' }
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error', error: err.message });
+  }
+};

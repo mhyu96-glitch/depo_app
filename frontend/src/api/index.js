@@ -103,9 +103,10 @@ export const customerApi = {
 
 // Transactions
 export const transactionApi = {
-  getAll:  (params) => api.get('/transactions', { params }),
-  getById: (id)     => api.get(`/transactions/${id}`),
-  create:  (data)   => api.post('/transactions', data),
+  getAll:       (params) => api.get('/transactions', { params }),
+  getById:      (id)     => api.get(`/transactions/${id}`),
+  create:       (data)   => api.post('/transactions', data),
+  requestDelete: (id, data) => api.post(`/transactions/${id}/request-delete`, data),
 };
 
 // Attendance
