@@ -12,73 +12,127 @@ exports.checkIn = async (req, res) => {
       return res.status(400).json({ message: 'Courier ID wajib diisi' });
     }
 
-    // Check if already checked in today
-    const existing = await db.pool.query(
-      'SELECT * FROM attendance WHERE courier_id = $1 AND DATE(check_in_time) = $2',
-      [courier_id, today]
-    );
+    // Check if already checked in today - try different date field patterns
+    let existing;
+    try {
+      existing = await db.pool.query(
+        'SELECT * FROM attendance WHERE courier_id = $1 AND DATE(created_at) = $2',
+        [courier_id, today]
+      );
+    } catch (err) {
+      // Fallback if DATE function not supported or different column name
+      existing = await db.pool.query(
+        'SELECT * FROM attendance WHERE courier_id = $1 AND created_at >= $2 AND created_at < $3',
+        [courier_id, today, today + 'T23:59:59']
+      );
+    }
 
     if (existing.rows.length > 0) {
       return res.status(400).json({ message: 'Kurir sudah absen hari ini' });
     }
 
-    // Verify face (optional - akan diimplementasi di frontend)
-    let face_verified = false;
-    if (face_data) {
-      // TODO: Compare with registered face in courier_faces table
-      // For now, just mark as verified if face_data provided
-      face_verified = true;
+    // Get table schema to determine available columns
+    const schemaResult = await db.pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'attendance'
+    `);
+    
+    const availableColumns = schemaResult.rows.map(row => row.column_name);
+    console.log('Available attendance columns:', availableColumns);
+
+    // Build dynamic insert based on available columns
+    let columns = ['courier_id'];
+    let values = [courier_id];
+    let placeholders = ['$1'];
+    let paramCount = 1;
+
+    // Add branch_id if user has it
+    if (req.user.branch_id) {
+      paramCount++;
+      columns.push('branch_id');
+      values.push(req.user.branch_id);
+      placeholders.push(`$${paramCount}`);
     }
 
-    // Create attendance record with backward compatibility
-    let insertQuery, insertParams;
-    
-    // Try new schema first (with separate check_in_time and check_out_time)
-    try {
-      insertQuery = `
-        INSERT INTO attendance 
-        (courier_id, branch_id, date, check_in_time, face_data, face_verified, location_lat, location_lng, device_info, created_by) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
-        RETURNING *
-      `;
-      insertParams = [
-        courier_id, 
-        req.user.branch_id || 1, 
-        today, 
-        currentTime, 
-        face_data, 
-        face_verified, 
-        location_lat, 
-        location_lng, 
-        device_info, 
-        req.user.id
-      ];
-      
-      const result = await db.pool.query(insertQuery, insertParams);
-      
-      return res.json({ 
-        message: 'Absensi wajah berhasil!', 
-        data: result.rows[0] 
-      });
-      
-    } catch (schemaError) {
-      // Fallback to old schema if new columns don't exist
-      console.log('Trying fallback schema for attendance...');
-      
-      insertQuery = `
-        INSERT INTO attendance (courier_id, branch_id, date, status, created_by) 
-        VALUES ($1, $2, $3, 'present', $4) 
-        RETURNING *
-      `;
-      insertParams = [courier_id, req.user.branch_id || 1, today, req.user.id];
-      
-      const result = await db.pool.query(insertQuery, insertParams);
-      
-      return res.json({ 
-        message: 'Absensi berhasil (mode kompatibilitas)', 
-        data: result.rows[0] 
-      });
+    // Add date column if available
+    if (availableColumns.includes('date')) {
+      paramCount++;
+      columns.push('date');
+      values.push(today);
+      placeholders.push(`$${paramCount}`);
     }
+
+    // Add check_in_time if available
+    if (availableColumns.includes('check_in_time')) {
+      paramCount++;
+      columns.push('check_in_time');
+      values.push(currentTime);
+      placeholders.push(`$${paramCount}`);
+    }
+
+    // Add face_data if available and provided
+    if (availableColumns.includes('face_data') && face_data) {
+      paramCount++;
+      columns.push('face_data');
+      values.push(face_data);
+      placeholders.push(`$${paramCount}`);
+    }
+
+    // Add face_verified if available
+    if (availableColumns.includes('face_verified')) {
+      paramCount++;
+      columns.push('face_verified');
+      values.push(face_data ? true : false);
+      placeholders.push(`$${paramCount}`);
+    }
+
+    // Add location if available
+    if (availableColumns.includes('location_lat') && location_lat) {
+      paramCount++;
+      columns.push('location_lat');
+      values.push(location_lat);
+      placeholders.push(`$${paramCount}`);
+    }
+
+    if (availableColumns.includes('location_lng') && location_lng) {
+      paramCount++;
+      columns.push('location_lng');
+      values.push(location_lng);
+      placeholders.push(`$${paramCount}`);
+    }
+
+    // Add device_info if available
+    if (availableColumns.includes('device_info') && device_info) {
+      paramCount++;
+      columns.push('device_info');
+      values.push(device_info);
+      placeholders.push(`$${paramCount}`);
+    }
+
+    // Add created_by if available
+    if (availableColumns.includes('created_by') && req.user.id) {
+      paramCount++;
+      columns.push('created_by');
+      values.push(req.user.id);
+      placeholders.push(`$${paramCount}`);
+    }
+
+    const insertQuery = `
+      INSERT INTO attendance (${columns.join(', ')}) 
+      VALUES (${placeholders.join(', ')}) 
+      RETURNING *
+    `;
+
+    console.log('Executing query:', insertQuery);
+    console.log('With values:', values);
+
+    const result = await db.pool.query(insertQuery, values);
+    
+    res.json({ 
+      message: 'Absensi wajah berhasil!', 
+      data: result.rows[0] 
+    });
 
   } catch (err) {
     console.error('Attendance error:', err);
