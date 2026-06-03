@@ -5,19 +5,28 @@
 // kasir         : POS + pelanggan + absensi saja
 
 const requireRole = (...roles) => (req, res, next) => {
+  console.log('RBAC Check:', { userRole: req.user?.role, requiredRoles: roles });
+  
   if (!req.user) return res.status(401).json({ success: false, message: 'Tidak terautentikasi' });
   
   // superadmin selalu lolos untuk semua role
-  if (req.user.role === 'superadmin') return next();
+  if (req.user.role === 'superadmin') {
+    console.log('✅ Access granted: superadmin');
+    return next();
+  }
   
   // admin pusat lolos untuk admin dan branch_admin
   if (req.user.role === 'admin' && (roles.includes('admin') || roles.includes('branch_admin'))) {
+    console.log('✅ Access granted: admin');
     return next();
   }
   
   if (!roles.includes(req.user.role)) {
+    console.log('❌ Access denied:', req.user.role, 'not in', roles);
     return res.status(403).json({ success: false, message: 'Akses ditolak: izin tidak mencukupi' });
   }
+  
+  console.log('✅ Access granted:', req.user.role);
   next();
 };
 
