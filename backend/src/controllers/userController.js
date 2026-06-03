@@ -168,7 +168,6 @@ exports.kasirToCourier = async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(404).json({ message: 'User tidak ditemukan atau bukan milik cabang Anda' });
     }
-    }
     const user = userRes.rows[0];
 
     // Cek apakah sudah terdaftar sebagai kurir
