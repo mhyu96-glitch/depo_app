@@ -31,6 +31,11 @@ const zeroScrollStyles = `
 
 export default function POS() {
   const { user } = useAuth();
+  
+  // View State: 'form' untuk transaksi baru, 'history' untuk melihat history
+  const [currentView, setCurrentView] = useState('form');
+  
+  // Form states
   const [form, setForm] = useState({ transaction_type: 'pickup', courier_id: '', customer_id: '', customer_name: '', total_gallons: 1, unit_price: 5000, discount: 0, payment_method: 'cash', payment_status: 'paid', partial_amount: 0, notes: '', });
   const [customers, setCustomers] = useState([]);
   const [couriers,  setCouriers]  = useState([]);
@@ -39,6 +44,11 @@ export default function POS() {
   const [selectedCust, setSelectedCust] = useState(null);
   const [loading, setLoading]  = useState(false);
   const [success, setSuccess]  = useState(null);
+  
+  // History states
+  const [salesHistory, setSalesHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   
   // 🎫 Kupon/Voucher Toggle
@@ -48,13 +58,59 @@ export default function POS() {
   const [voucherValid, setVoucherValid] = useState(false);
   const [autoVoucherType, setAutoVoucherType] = useState(''); // 'BL' or 'DL'
 
+  // Load sales history function
+  const loadSalesHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const params = { 
+        branch_id: user?.branch_id,
+        start_date: today,
+        end_date: today
+      };
+      const res = await transactionApi.getAll(params);
+      setSalesHistory(res.data.data || []);
+    } catch (error) {
+      console.error('Error loading sales history:', error);
+      setSalesHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  // Handle delete request
+  const handleDeleteRequest = async (transactionId, invoiceNumber) => {
+    const reason = prompt(`Masukkan alasan penghapusan untuk ${invoiceNumber}:`);
+    if (!reason || reason.trim() === '') {
+      alert('Alasan penghapusan harus diisi!');
+      return;
+    }
+
+    setDeleteLoading(prev => ({ ...prev, [transactionId]: true }));
+    try {
+      await transactionApi.requestDelete(transactionId, { reason: reason.trim() });
+      alert(`✅ Permintaan penghapusan untuk ${invoiceNumber} berhasil dikirim ke admin!`);
+      // Reload history to show updated status
+      loadSalesHistory();
+    } catch (error) {
+      alert('❌ Gagal mengirim permintaan: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setDeleteLoading(prev => ({ ...prev, [transactionId]: false }));
+    }
+  };
+
   useEffect(() => {
     const p = { branch_id: user?.branch_id };
     Promise.all([ courierApi.getAll(p), productApi.getAll(p) ]).then(([c, pr]) => {
       setCouriers(c.data.data || []); setProducts(pr.data.data || []);
       if (pr.data.data?.[0]?.price) setForm(f => ({ ...f, unit_price: pr.data.data[0].price }));
     });
-  }, [user]);
+    
+    // Load history if we're on history view
+    if (currentView === 'history') {
+      loadSalesHistory();
+    }
+  }, [user, currentView]);
 
   useEffect(() => {
     if (selectedCust) {
@@ -211,6 +267,11 @@ export default function POS() {
       setVoucherDiscount(0);
       setVoucherValid(false);
       setAutoVoucherType('');
+      
+      // Refresh history if we're in history view
+      if (currentView === 'history') {
+        loadSalesHistory();
+      }
     } catch (err) { 
       if (!err.response || err.message.includes('Network Error')) {
          saveOffline(payload);
@@ -244,97 +305,128 @@ export default function POS() {
 
       {/* TOP BAR (ULTRA COMPACT) */}
       <div className="flex items-center justify-between gap-3 px-4 py-1.5 bg-white rounded-xl shadow-sm border border-gray-100 shrink-0">
-         <div className="flex-1 relative">
-            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
-            <input className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-gray-50 border-none focus:ring-1 focus:ring-primary-100 font-bold text-[11px]" 
-               placeholder="Cari Pelanggan..." value={custSearch} onChange={e => { setCustSearch(e.target.value); searchCustomers(e.target.value); setSelectedCust(null); setForm(f=>({...f, customer_id:'', customer_name:e.target.value})); }} />
-            
-            {customers.length > 0 && (
-               <div className="absolute z-50 mt-1 w-full bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
-                  {customers.map(c => (
-                     <button key={c.id} type="button" onClick={() => { setSelectedCust(c); setCustSearch(c.name); setCustomers([]); setForm(f=>({...f, customer_id:c.id, customer_name:c.name})); }} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-primary-50 text-left border-b last:border-0 border-gray-50">
-                        <div className="w-5 h-5 rounded bg-primary-100 text-primary-600 flex items-center justify-center font-black text-[9px]">{c.name[0]}</div>
-                        <p className="text-[10px] font-black">{c.name}</p>
-                     </button>
-                  ))}
-               </div>
-            )}
+         {/* Left: Search atau History Button */}
+         <div className="flex-1">
+           {currentView === 'form' ? (
+             <div className="relative">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-300" />
+                <input className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-gray-50 border-none focus:ring-1 focus:ring-primary-100 font-bold text-[11px]" 
+                   placeholder="Cari Pelanggan..." value={custSearch} onChange={e => { setCustSearch(e.target.value); searchCustomers(e.target.value); setSelectedCust(null); setForm(f=>({...f, customer_id:'', customer_name:e.target.value})); }} />
+                
+                {customers.length > 0 && (
+                   <div className="absolute z-50 mt-1 w-full bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
+                      {customers.map(c => (
+                         <button key={c.id} type="button" onClick={() => { setSelectedCust(c); setCustSearch(c.name); setCustomers([]); setForm(f=>({...f, customer_id:c.id, customer_name:c.name})); }} className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-primary-50 text-left border-b last:border-0 border-gray-50">
+                            <div className="w-5 h-5 rounded bg-primary-100 text-primary-600 flex items-center justify-center font-black text-[9px]">{c.name[0]}</div>
+                            <p className="text-[10px] font-black">{c.name}</p>
+                         </button>
+                      ))}
+                   </div>
+                )}
+             </div>
+           ) : (
+             <button 
+               onClick={() => setCurrentView('form')}
+               className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-black text-[11px] uppercase tracking-wide hover:shadow-lg hover:shadow-emerald-500/30 transition-all"
+             >
+               <Plus size={14} />
+               TRANSAKSI BARU
+             </button>
+           )}
          </div>
 
-         <div className="flex p-0.5 bg-gray-50 rounded-lg shrink-0">
-            {[{v:'pickup', l:'Pickup'}, {v:'delivery', l:'Delivery'}].map(t => (
-               <button key={t.v} type="button" onClick={() => setForm(f=>({...f, transaction_type:t.v, courier_id: t.v === 'pickup' ? '' : f.courier_id}))}
-                  className={`px-5 py-1.5 rounded-md text-[9px] font-black uppercase transition-all ${form.transaction_type === t.v ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-400'}`}>{t.l}</button>
-            ))}
-         </div>
+         {/* Middle: Transaction Type (hanya di form view) */}
+         {currentView === 'form' && (
+           <div className="flex p-0.5 bg-gray-50 rounded-lg shrink-0">
+              {[{v:'pickup', l:'Pickup'}, {v:'delivery', l:'Delivery'}].map(t => (
+                 <button key={t.v} type="button" onClick={() => setForm(f=>({...f, transaction_type:t.v, courier_id: t.v === 'pickup' ? '' : f.courier_id}))}
+                    className={`px-5 py-1.5 rounded-md text-[9px] font-black uppercase transition-all ${form.transaction_type === t.v ? 'bg-white text-primary-600 shadow-sm' : 'text-gray-400'}`}>{t.l}</button>
+              ))}
+           </div>
+         )}
 
+         {/* Right: Action buttons */}
          <div className="flex items-center gap-2 shrink-0">
+            {currentView === 'form' && (
+              <button 
+                type="button" 
+                onClick={() => setCurrentView('history')}
+                className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 hover:bg-blue-100 transition-colors"
+              >
+                <Bell size={12} />
+                HISTORY
+              </button>
+            )}
             {offlineQueue.length > 0 && (
               <button type="button" onClick={syncOffline} disabled={loading} className="px-3 py-1 bg-rose-50 text-rose-500 rounded-lg text-[9px] font-black uppercase flex items-center gap-1 animate-pulse">
                 <RefreshCw size={12} className={loading ? "animate-spin" : ""} /> {offlineQueue.length} Pending
               </button>
             )}
-            <button type="button" className="p-2 text-gray-300 hover:text-gray-500"><Bell size={16}/></button>
-            <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center text-white font-black text-[10px]">JD</div>
+            <div className="w-7 h-7 rounded-lg bg-primary-600 flex items-center justify-center text-white font-black text-[10px]">
+              {user?.username?.slice(0, 2)?.toUpperCase() || 'KS'}
+            </div>
          </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="main-grid">
-        {/* LEFT CONTENT */}
-        <div className="left-content">
-          {/* Middle Row: Qty & Prices (SLIM) */}
-          <div className="flex gap-3 items-stretch flex-1 min-h-0">
-             <div className="qty-card">
-                <p className="absolute top-4 left-4 text-[8px] font-black uppercase text-gray-300 tracking-widest">Qty</p>
-                <div className="flex items-center gap-6">
-                   <button type="button" onClick={() => setForm(f=>({...f, total_gallons:Math.max(1, f.total_gallons-1)}))} className="w-10 h-10 rounded-full border border-gray-100 flex items-center justify-center text-gray-300 hover:text-rose-500"><Minus size={18}/></button>
-                   <span className="text-6xl font-black tabular-nums tracking-tighter text-gray-900 leading-none">{form.total_gallons}</span>
-                   <button type="button" onClick={() => setForm(f=>({...f, total_gallons:f.total_gallons+1}))} className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white shadow-md shadow-primary-600/30 hover:bg-primary-700"><Plus size={18}/></button>
-                </div>
-                <div className="absolute bottom-4 left-4 right-4 h-1 bg-gray-50 rounded-full overflow-hidden">
-                   <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, form.total_gallons * 5)}%` }} className="h-full bg-primary-600" />
+      {/* MAIN CONTENT - Conditional Rendering */}
+      {currentView === 'form' ? (
+        /* FORM VIEW - Original POS Form */
+        <form onSubmit={handleSubmit} className="main-grid">
+          {/* LEFT CONTENT */}
+          <div className="left-content">
+            {/* Middle Row: Qty & Prices (SLIM) */}
+            <div className="flex gap-3 items-stretch flex-1 min-h-0">
+               <div className="qty-card">
+                  <p className="absolute top-4 left-4 text-[8px] font-black uppercase text-gray-300 tracking-widest">Qty</p>
+                  <div className="flex items-center gap-6">
+                     <button type="button" onClick={() => setForm(f=>({...f, total_gallons:Math.max(1, f.total_gallons-1)}))} className="w-10 h-10 rounded-full border border-gray-100 flex items-center justify-center text-gray-300 hover:text-rose-500"><Minus size={18}/></button>
+                     <span className="text-6xl font-black tabular-nums tracking-tighter text-gray-900 leading-none">{form.total_gallons}</span>
+                     <button type="button" onClick={() => setForm(f=>({...f, total_gallons:f.total_gallons+1}))} className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white shadow-md shadow-primary-600/30 hover:bg-primary-700"><Plus size={18}/></button>
+                  </div>
+                  <div className="absolute bottom-4 left-4 right-4 h-1 bg-gray-50 rounded-full overflow-hidden">
+                     <motion.div initial={{ width: 0 }} animate={{ width: `${Math.min(100, form.total_gallons * 5)}%` }} className="h-full bg-primary-600" />
+                  </div>
+               </div>
+
+               <div className="flex flex-col gap-3 shrink-0">
+                  <div className="price-card">
+                     <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest leading-none">Price</p>
+                     <div className="flex items-baseline gap-1">
+                        <span className="text-xs font-black text-gray-300">Rp</span>
+                        <input type="number" className="bg-transparent border-none focus:ring-0 p-0 font-black text-lg w-20" value={form.unit_price} onChange={e=>setForm(f=>({...f, unit_price:parseFloat(e.target.value)||0}))} />
+                     </div>
+                  </div>
+                  <div className="price-card border-rose-50 bg-rose-50/10">
+                     <p className="text-[8px] font-black uppercase text-rose-400 tracking-widest leading-none">Disc</p>
+                     <div className="flex items-baseline gap-1">
+                        <span className="text-xs font-black text-rose-200">Rp</span>
+                        <input type="number" className="bg-transparent border-none focus:ring-0 p-0 font-black text-lg w-20 text-rose-600" value={form.discount} onChange={e=>setForm(f=>({...f, discount:parseFloat(e.target.value)||0}))} />
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            {/* Bottom Presets (SLIM) */}
+            <div className="flex gap-2 shrink-0">
+               {[1, 2, 5, 10, 20].map(q => (
+                  <button key={q} type="button" onClick={() => setForm(f=>({...f, total_gallons:q}))}
+                     className={`preset-btn flex-1 ${form.total_gallons === q ? 'active' : ''}`}>{q} G</button>
+               ))}
+            </div>
+          </div>
+
+          {/* SIDEBAR (ZERO SCROLL FIXED) */}
+          <div className="sidebar-content">
+             {/* Slim Header */}
+             <div className="px-5 py-4 bg-gray-900 text-white shrink-0">
+                <p className="text-[8px] font-black opacity-30 uppercase tracking-widest mb-1">Total</p>
+                <div className="flex items-baseline gap-1">
+                   <span className="text-lg font-black text-primary-500">Rp</span>
+                   <span className="text-2xl font-black tabular-nums tracking-tighter">{total.toLocaleString('id-ID')}</span>
                 </div>
              </div>
 
-             <div className="flex flex-col gap-3 shrink-0">
-                <div className="price-card">
-                   <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest leading-none">Price</p>
-                   <div className="flex items-baseline gap-1">
-                      <span className="text-xs font-black text-gray-300">Rp</span>
-                      <input type="number" className="bg-transparent border-none focus:ring-0 p-0 font-black text-lg w-20" value={form.unit_price} onChange={e=>setForm(f=>({...f, unit_price:parseFloat(e.target.value)||0}))} />
-                   </div>
-                </div>
-                <div className="price-card border-rose-50 bg-rose-50/10">
-                   <p className="text-[8px] font-black uppercase text-rose-400 tracking-widest leading-none">Disc</p>
-                   <div className="flex items-baseline gap-1">
-                      <span className="text-xs font-black text-rose-200">Rp</span>
-                      <input type="number" className="bg-transparent border-none focus:ring-0 p-0 font-black text-lg w-20 text-rose-600" value={form.discount} onChange={e=>setForm(f=>({...f, discount:parseFloat(e.target.value)||0}))} />
-                   </div>
-                </div>
-             </div>
-          </div>
-
-          {/* Bottom Presets (SLIM) */}
-          <div className="flex gap-2 shrink-0">
-             {[1, 2, 5, 10, 20].map(q => (
-                <button key={q} type="button" onClick={() => setForm(f=>({...f, total_gallons:q}))}
-                   className={`preset-btn flex-1 ${form.total_gallons === q ? 'active' : ''}`}>{q} G</button>
-             ))}
-          </div>
-        </div>
-
-        {/* SIDEBAR (ZERO SCROLL FIXED) */}
-        <div className="sidebar-content">
-           {/* Slim Header */}
-           <div className="px-5 py-4 bg-gray-900 text-white shrink-0">
-              <p className="text-[8px] font-black opacity-30 uppercase tracking-widest mb-1">Total</p>
-              <div className="flex items-baseline gap-1">
-                 <span className="text-lg font-black text-primary-500">Rp</span>
-                 <span className="text-2xl font-black tabular-nums tracking-tighter">{total.toLocaleString('id-ID')}</span>
-              </div>
-           </div>
-
-           <div className="flex-1 p-4 flex flex-col gap-4 overflow-hidden">
+             <div className="flex-1 p-4 flex flex-col gap-4 overflow-hidden">
               {/* 🎫 KUPON/VOUCHER TOGGLE */}
               <div className="space-y-1.5">
                  <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest ml-1">Kupon Diskon</p>
@@ -551,6 +643,192 @@ export default function POS() {
            </div>
         </div>
       </form>
+      ) : (
+        /* HISTORY VIEW - Sales History with Delete Request */
+        <div className="flex-1 bg-white rounded-xl border border-gray-100 overflow-hidden">
+          {/* History Header */}
+          <div className="px-6 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-black text-lg tracking-tight">History Penjualan Hari Ini</h2>
+                <p className="text-blue-100 text-sm font-medium">{new Date().toLocaleDateString('id-ID', { 
+                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                })}</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={loadSalesHistory}
+                  disabled={historyLoading}
+                  className="px-4 py-2 bg-white/20 rounded-lg font-bold text-sm flex items-center gap-2 hover:bg-white/30 transition-colors"
+                >
+                  <RefreshCw size={16} className={historyLoading ? "animate-spin" : ""} />
+                  {historyLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* History Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {historyLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <Loader2 size={32} className="animate-spin text-blue-500 mx-auto mb-3" />
+                  <p className="text-gray-500 font-medium">Memuat history penjualan...</p>
+                </div>
+              </div>
+            ) : salesHistory.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <ShoppingCart size={48} className="text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 font-medium text-lg">Belum ada transaksi hari ini</p>
+                  <p className="text-gray-400 text-sm">Mulai dengan membuat transaksi baru</p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {salesHistory.map((transaction, index) => {
+                  const isDeleteRequested = transaction.delete_requested;
+                  
+                  return (
+                    <motion.div
+                      key={transaction.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className={`p-4 rounded-xl border-2 transition-all ${
+                        isDeleteRequested 
+                          ? 'border-amber-200 bg-amber-50' 
+                          : 'border-gray-100 bg-white hover:border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-black text-sm text-gray-900">{transaction.invoice_number}</span>
+                              {transaction.transaction_type === 'delivery' && (
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-bold">
+                                  <Truck size={10} className="inline mr-1" />
+                                  DELIVERY
+                                </span>
+                              )}
+                              {isDeleteRequested && (
+                                <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-bold">
+                                  ⏳ PENDING DELETE
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-400 font-medium">
+                              {new Date(transaction.created_at).toLocaleTimeString('id-ID', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-700 text-sm">
+                                {transaction.customer_name || 'Pelanggan Umum'}
+                              </p>
+                              <div className="flex items-center gap-4 mt-1">
+                                <span className="text-xs text-gray-500">
+                                  {transaction.total_gallons || 1}x Galon
+                                </span>
+                                {transaction.voucher_code && (
+                                  <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-bold">
+                                    <Tag size={10} className="inline mr-1" />
+                                    {transaction.voucher_type === 'BL' ? '🛒 BL' : 
+                                     transaction.voucher_type === 'DL' ? '🚚 DL' : 'VOUCHER'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-black text-lg text-emerald-600">
+                                {fmt(transaction.total_amount)}
+                              </p>
+                              <p className="text-xs text-gray-400 uppercase font-bold">
+                                {transaction.payment_method}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Delete Button */}
+                        {!isDeleteRequested && (
+                          <div className="ml-4 pl-4 border-l border-gray-100">
+                            <button
+                              onClick={() => handleDeleteRequest(transaction.id, transaction.invoice_number)}
+                              disabled={deleteLoading[transaction.id]}
+                              className="px-3 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold uppercase flex items-center gap-1 hover:bg-red-100 transition-colors disabled:opacity-50"
+                            >
+                              {deleteLoading[transaction.id] ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <X size={12} />
+                              )}
+                              HAPUS
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      <AnimatePresence>
+        {success && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setSuccess(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 size={32} className="text-emerald-500" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 mb-2">Transaksi Berhasil!</h3>
+              <p className="text-gray-600 mb-1 font-medium">{success.invoice_number}</p>
+              <p className="text-2xl font-black text-emerald-600 mb-6">{fmt(success.total_amount)}</p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setSuccess(null)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                >
+                  Tutup
+                </button>
+                <button 
+                  onClick={() => {
+                    window.print();
+                    setSuccess(null);
+                  }}
+                  className="flex-1 py-3 bg-primary-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-primary-700 transition-colors"
+                >
+                  <Printer size={16} />
+                  Print
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AddCustomerModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSuccess={(c) => { setSelectedCust(c); setCustSearch(c.name); setForm(f=>({...f, customer_id:c.id, customer_name:c.name})); }} branchId={user?.branch_id} />
     </div>
