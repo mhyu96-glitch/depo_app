@@ -79,10 +79,10 @@ const AppRoutes = () => {
         <Route path="branches"           element={<PrivateRoute adminOnly><Branches /></PrivateRoute>} />
         <Route path="users"              element={<PrivateRoute adminOnly><Users /></PrivateRoute>} />
         <Route path="settings"           element={<PrivateRoute adminOnly><Settings /></PrivateRoute>} />
-        <Route path="reports/sales"      element={<PrivateRoute adminOnly><SalesReport /></PrivateRoute>} />
-        <Route path="reports/salary"     element={<PrivateRoute adminOnly><SalaryReport /></PrivateRoute>} />
-        <Route path="reports/cashflow"   element={<PrivateRoute adminOnly><CashFlowReport /></PrivateRoute>} />
-        <Route path="reports/debt"       element={<PrivateRoute adminOnly><DebtReport /></PrivateRoute>} />
+        <Route path="reports/sales"      element={<PrivateRoute superAdminOnly><SalesReport /></PrivateRoute>} />
+        <Route path="reports/salary"     element={<PrivateRoute superAdminOnly><SalaryReport /></PrivateRoute>} />
+        <Route path="reports/cashflow"   element={<PrivateRoute superAdminOnly><CashFlowReport /></PrivateRoute>} />
+        <Route path="reports/debt"       element={<PrivateRoute superAdminOnly><DebtReport /></PrivateRoute>} />
         <Route path="reports/profit-loss"element={<PrivateRoute superAdminOnly><ProfitLoss /></PrivateRoute>} />
         <Route path="analytics"          element={<PrivateRoute adminOnly><Analytics /></PrivateRoute>} />
         <Route path="maps"               element={<PrivateRoute adminOnly><Maps /></PrivateRoute>} />

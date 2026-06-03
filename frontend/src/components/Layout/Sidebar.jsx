@@ -113,15 +113,15 @@ export default function Sidebar({ open, onClose, collapsed }) {
               <NavItem to="/courier-app"         icon="delivery_dining" label="Kurir Mobile App" color="text-purple-500" onClick={onClose} />
             </NavGroup>
 
-            <NavGroup icon="description" label="Laporan Bisnis" color="text-pink-500" collapsed={collapsed}>
-              <NavItem to="/reports/sales"       icon="trending_up" label="Penjualan" color="text-emerald-500" onClick={onClose} />
-              <NavItem to="/reports/salary"      icon="payments" label="Gaji Kurir" color="text-rose-500" onClick={onClose} />
-              <NavItem to="/reports/cashflow"    icon="swap_horiz" label="Arus Kas" color="text-blue-500" onClick={onClose} />
-              <NavItem to="/reports/debt"        icon="error_outline" label="Hutang" color="text-red-500" onClick={onClose} />
-              {isSuperAdmin && (
+            {isSuperAdmin && (
+              <NavGroup icon="description" label="Laporan Bisnis" color="text-pink-500" collapsed={collapsed}>
+                <NavItem to="/reports/sales"       icon="trending_up" label="Penjualan" color="text-emerald-500" onClick={onClose} />
+                <NavItem to="/reports/salary"      icon="payments" label="Gaji Kurir" color="text-rose-500" onClick={onClose} />
+                <NavItem to="/reports/cashflow"    icon="swap_horiz" label="Arus Kas" color="text-blue-500" onClick={onClose} />
+                <NavItem to="/reports/debt"        icon="error_outline" label="Hutang" color="text-red-500" onClick={onClose} />
                 <NavItem to="/reports/profit-loss" icon="analytics" label="Laba Rugi" color="text-indigo-500" onClick={onClose} />
-              )}
-            </NavGroup>
+              </NavGroup>
+            )}
 
             <NavItem to="/settings" icon="settings" label="Pengaturan" color="text-gray-500" onClick={onClose} collapsed={collapsed} />
           </>
