@@ -46,6 +46,7 @@ export default function POS() {
   const [voucherCode, setVoucherCode] = useState('');
   const [voucherDiscount, setVoucherDiscount] = useState(0);
   const [voucherValid, setVoucherValid] = useState(false);
+  const [autoVoucherType, setAutoVoucherType] = useState(''); // 'BL' or 'DL'
 
   useEffect(() => {
     const p = { branch_id: user?.branch_id };
@@ -112,6 +113,20 @@ export default function POS() {
     try { const res = await customerApi.getAll({ search: q, branch_id: user?.branch_id, limit: 5 }); setCustomers(res.data.data || []); } catch (_) { setCustomers([]); }
   }, [user]);
 
+  // Generate Auto Voucher Code
+  const generateAutoVoucherCode = useCallback((type) => {
+    const today = new Date();
+    const dateStr = today.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
+    const timeStr = today.getHours().toString().padStart(2, '0') + today.getMinutes().toString().padStart(2, '0');
+    
+    if (type === 'pickup') {
+      return `BL${dateStr}${timeStr}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`;
+    } else if (type === 'delivery') {
+      return `DL${dateStr}${timeStr}${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`;
+    }
+    return '';
+  }, []);
+
   const total = (form.total_gallons * form.unit_price) - Number(form.discount || 0) - Number(voucherDiscount || 0);
 
   const [offlineQueue, setOfflineQueue] = useState([]);
@@ -171,6 +186,7 @@ export default function POS() {
       // Data voucher
       voucher_code: useVoucher && voucherValid ? voucherCode : null,
       voucher_discount: useVoucher && voucherValid ? voucherDiscount : 0,
+      voucher_type: autoVoucherType || 'manual', // 'BL', 'DL', atau 'manual'
     };
     
     try {
@@ -194,6 +210,7 @@ export default function POS() {
       setVoucherCode('');
       setVoucherDiscount(0);
       setVoucherValid(false);
+      setAutoVoucherType('');
     } catch (err) { 
       if (!err.response || err.message.includes('Network Error')) {
          saveOffline(payload);
@@ -214,6 +231,7 @@ export default function POS() {
          setVoucherCode('');
          setVoucherDiscount(0);
          setVoucherValid(false);
+         setAutoVoucherType('');
       } else {
          alert('Gagal: ' + (err.response?.data?.message || err.message)); 
       }
@@ -339,7 +357,12 @@ export default function POS() {
                  <div className="flex gap-2">
                     <button 
                        type="button"
-                       onClick={() => { setUseVoucher(false); setVoucherCode(''); }}
+                       onClick={() => { 
+                         setUseVoucher(false); 
+                         setVoucherCode(''); 
+                         setAutoVoucherType(''); 
+                         setVoucherDiscount(0);
+                       }}
                        className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${!useVoucher ? 'bg-primary-600 text-white border-2 border-primary-600' : 'bg-gray-50 text-gray-400 border-2 border-gray-100'}`}
                     >
                        TANPA KUPON
@@ -353,25 +376,67 @@ export default function POS() {
                     </button>
                  </div>
                  
-                 {/* Voucher Code Input */}
+                 {/* Voucher Options */}
                  <AnimatePresence>
                     {useVoucher && (
                        <motion.div 
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="overflow-hidden space-y-1.5"
+                          className="overflow-hidden space-y-2"
                        >
+                          {/* Auto Voucher Buttons */}
+                          <div className="grid grid-cols-2 gap-2">
+                             <button
+                                type="button"
+                                onClick={() => {
+                                  const code = generateAutoVoucherCode('pickup');
+                                  setVoucherCode(code);
+                                  setAutoVoucherType('BL');
+                                  setVoucherDiscount(2000); // Diskon Rp 2000 untuk beli langsung
+                                  setVoucherValid(true);
+                                }}
+                                className={`py-2 px-3 rounded-lg text-[8px] font-black uppercase transition-all border-2 ${
+                                  autoVoucherType === 'BL' 
+                                    ? 'bg-green-500 text-white border-green-500' 
+                                    : 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
+                                }`}
+                             >
+                                🛒 BELI LANGSUNG
+                             </button>
+                             <button
+                                type="button"
+                                onClick={() => {
+                                  const code = generateAutoVoucherCode('delivery');
+                                  setVoucherCode(code);
+                                  setAutoVoucherType('DL');
+                                  setVoucherDiscount(1000); // Diskon Rp 1000 untuk delivery
+                                  setVoucherValid(true);
+                                }}
+                                className={`py-2 px-3 rounded-lg text-[8px] font-black uppercase transition-all border-2 ${
+                                  autoVoucherType === 'DL' 
+                                    ? 'bg-blue-500 text-white border-blue-500' 
+                                    : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100'
+                                }`}
+                             >
+                                🚚 DELIVERY
+                             </button>
+                          </div>
+
+                          {/* Manual Voucher Input */}
                           <div className="relative">
                              <input 
                                 type="text"
                                 value={voucherCode}
-                                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
-                                placeholder="MASUKKAN KODE VOUCHER"
+                                onChange={(e) => {
+                                  setVoucherCode(e.target.value.toUpperCase());
+                                  setAutoVoucherType(''); // Reset auto type if manual input
+                                }}
+                                placeholder="ATAU MASUKKAN KODE MANUAL"
                                 className={`w-full px-3 py-2 rounded-lg text-[10px] font-black uppercase placeholder:text-purple-300 focus:ring-2 transition-all ${
                                    voucherCode && voucherValid 
                                       ? 'bg-emerald-50 border-2 border-emerald-400 text-emerald-900 focus:ring-emerald-500' 
-                                      : voucherCode && !voucherValid 
+                                      : voucherCode && !voucherValid && !autoVoucherType
                                       ? 'bg-rose-50 border-2 border-rose-400 text-rose-900 focus:ring-rose-500'
                                       : 'bg-purple-50 border-2 border-purple-200 text-purple-900 focus:ring-purple-500'
                                 }`}
@@ -383,7 +448,27 @@ export default function POS() {
                              )}
                           </div>
                           
-                          {voucherCode && voucherValid && (
+                          {/* Voucher Status Messages */}
+                          {voucherCode && voucherValid && autoVoucherType && (
+                             <motion.div 
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${
+                                  autoVoucherType === 'BL' 
+                                    ? 'bg-green-50 border-green-200' 
+                                    : 'bg-blue-50 border-blue-200'
+                                }`}
+                             >
+                                <Sparkles size={10} className={autoVoucherType === 'BL' ? 'text-green-500' : 'text-blue-500'} />
+                                <span className={`text-[8px] font-black uppercase ${
+                                  autoVoucherType === 'BL' ? 'text-green-700' : 'text-blue-700'
+                                }`}>
+                                   {autoVoucherType === 'BL' ? '🛒 Kupon Beli Langsung' : '🚚 Kupon Delivery'} - Diskon {fmt(voucherDiscount)}
+                                </span>
+                             </motion.div>
+                          )}
+                          
+                          {voucherCode && voucherValid && !autoVoucherType && (
                              <motion.div 
                                 initial={{ opacity: 0, y: -5 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -396,7 +481,7 @@ export default function POS() {
                              </motion.div>
                           )}
                           
-                          {voucherCode && !voucherValid && (
+                          {voucherCode && !voucherValid && !autoVoucherType && (
                              <motion.div 
                                 initial={{ opacity: 0, y: -5 }}
                                 animate={{ opacity: 1, y: 0 }}
@@ -463,7 +548,9 @@ export default function POS() {
                     <div className="flex justify-between text-[9px] font-bold text-purple-500">
                        <span className="flex items-center gap-1">
                           <Tag size={9} />
-                          Diskon Voucher ({voucherCode})
+                          {autoVoucherType === 'BL' ? '🛒 Kupon Beli Langsung' :
+                           autoVoucherType === 'DL' ? '🚚 Kupon Delivery' : 
+                           `Voucher (${voucherCode})`}
                        </span>
                        <span>- {fmt(voucherDiscount)}</span>
                     </div>
