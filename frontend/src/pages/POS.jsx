@@ -40,6 +40,12 @@ export default function POS() {
   const [loading, setLoading]  = useState(false);
   const [success, setSuccess]  = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  
+  // 🎫 Kupon/Voucher Toggle
+  const [useVoucher, setUseVoucher] = useState(false);
+  const [voucherCode, setVoucherCode] = useState('');
+  const [voucherDiscount, setVoucherDiscount] = useState(0);
+  const [voucherValid, setVoucherValid] = useState(false);
 
   useEffect(() => {
     const p = { branch_id: user?.branch_id };
@@ -60,12 +66,53 @@ export default function POS() {
     }
   }, [form.total_gallons, form.unit_price, selectedCust]);
 
+  // Validasi Voucher
+  useEffect(() => {
+    if (!useVoucher || !voucherCode || voucherCode.length < 3) {
+      setVoucherDiscount(0);
+      setVoucherValid(false);
+      return;
+    }
+
+    // Simulasi validasi voucher (bisa diganti dengan API call ke backend)
+    const validateVoucher = async () => {
+      const subtotal = form.total_gallons * form.unit_price;
+      
+      // Contoh voucher codes (bisa diganti dengan API)
+      const voucherDB = {
+        'DISKON10': { type: 'percentage', value: 10, min_purchase: 0 },
+        'DISKON20': { type: 'percentage', value: 20, min_purchase: 50000 },
+        'DISKON50K': { type: 'fixed', value: 50000, min_purchase: 100000 },
+        'GRATIS1': { type: 'free_item', value: 1, min_purchase: 100000 },
+      };
+
+      const voucher = voucherDB[voucherCode];
+      
+      if (voucher && subtotal >= voucher.min_purchase) {
+        setVoucherValid(true);
+        if (voucher.type === 'percentage') {
+          setVoucherDiscount(subtotal * (voucher.value / 100));
+        } else if (voucher.type === 'fixed') {
+          setVoucherDiscount(voucher.value);
+        } else {
+          setVoucherDiscount(0); // Untuk free_item, logika berbeda
+        }
+      } else {
+        setVoucherValid(false);
+        setVoucherDiscount(0);
+      }
+    };
+
+    const timer = setTimeout(validateVoucher, 500);
+    return () => clearTimeout(timer);
+  }, [useVoucher, voucherCode, form.total_gallons, form.unit_price]);
+
   const searchCustomers = useCallback(async (q) => {
     if (!q || q.length < 2) { setCustomers([]); return; }
     try { const res = await customerApi.getAll({ search: q, branch_id: user?.branch_id, limit: 5 }); setCustomers(res.data.data || []); } catch (_) { setCustomers([]); }
   }, [user]);
 
-  const total = (form.total_gallons * form.unit_price) - Number(form.discount || 0);
+  const total = (form.total_gallons * form.unit_price) - Number(form.discount || 0) - Number(voucherDiscount || 0);
 
   const [offlineQueue, setOfflineQueue] = useState([]);
 
@@ -107,18 +154,66 @@ export default function POS() {
     e.preventDefault();
     if (form.transaction_type === 'delivery' && !form.courier_id) { alert('Pilih kurir!'); return; }
     setLoading(true);
-    const payload = { ...form, branch_id: user?.branch_id, subtotal: form.total_gallons * form.unit_price, total_amount: total, items: [{ product_id: products[0]?.id, product_name: products[0]?.name || 'Galon', quantity: form.total_gallons, unit_price: form.unit_price, total_price: form.total_gallons * form.unit_price }], customer_phone: selectedCust?.whatsapp };
+    
+    const payload = { 
+      ...form, 
+      branch_id: user?.branch_id, 
+      subtotal: form.total_gallons * form.unit_price, 
+      total_amount: total, 
+      items: [{
+        product_id: products[0]?.id, 
+        product_name: products[0]?.name || 'Galon', 
+        quantity: form.total_gallons, 
+        unit_price: form.unit_price, 
+        total_price: form.total_gallons * form.unit_price 
+      }], 
+      customer_phone: selectedCust?.whatsapp,
+      // Data voucher
+      voucher_code: useVoucher && voucherValid ? voucherCode : null,
+      voucher_discount: useVoucher && voucherValid ? voucherDiscount : 0,
+    };
     
     try {
       const res = await transactionApi.create(payload);
       setSuccess(res.data.data);
-      setForm(f => ({ ...f, customer_id: '', customer_name: '', total_gallons: 1, discount: 0, notes: '', courier_id: '', transaction_type: 'pickup', payment_method: 'cash' }));
-      setSelectedCust(null); setCustSearch('');
+      // Reset form dan voucher
+      setForm(f => ({ 
+        ...f, 
+        customer_id: '', 
+        customer_name: '', 
+        total_gallons: 1, 
+        discount: 0, 
+        notes: '', 
+        courier_id: '', 
+        transaction_type: 'pickup', 
+        payment_method: 'cash' 
+      }));
+      setSelectedCust(null); 
+      setCustSearch('');
+      setUseVoucher(false);
+      setVoucherCode('');
+      setVoucherDiscount(0);
+      setVoucherValid(false);
     } catch (err) { 
       if (!err.response || err.message.includes('Network Error')) {
          saveOffline(payload);
-         setForm(f => ({ ...f, customer_id: '', customer_name: '', total_gallons: 1, discount: 0, notes: '', courier_id: '', transaction_type: 'pickup', payment_method: 'cash' }));
-         setSelectedCust(null); setCustSearch('');
+         setForm(f => ({ 
+           ...f, 
+           customer_id: '', 
+           customer_name: '', 
+           total_gallons: 1, 
+           discount: 0, 
+           notes: '', 
+           courier_id: '', 
+           transaction_type: 'pickup', 
+           payment_method: 'cash' 
+         }));
+         setSelectedCust(null); 
+         setCustSearch('');
+         setUseVoucher(false);
+         setVoucherCode('');
+         setVoucherDiscount(0);
+         setVoucherValid(false);
       } else {
          alert('Gagal: ' + (err.response?.data?.message || err.message)); 
       }
@@ -238,6 +333,86 @@ export default function POS() {
            </div>
 
            <div className="flex-1 p-4 flex flex-col gap-4 overflow-hidden">
+              {/* 🎫 KUPON/VOUCHER TOGGLE */}
+              <div className="space-y-1.5">
+                 <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest ml-1">Kupon Diskon</p>
+                 <div className="flex gap-2">
+                    <button 
+                       type="button"
+                       onClick={() => { setUseVoucher(false); setVoucherCode(''); }}
+                       className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${!useVoucher ? 'bg-primary-600 text-white border-2 border-primary-600' : 'bg-gray-50 text-gray-400 border-2 border-gray-100'}`}
+                    >
+                       TANPA KUPON
+                    </button>
+                    <button 
+                       type="button"
+                       onClick={() => setUseVoucher(true)}
+                       className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1 ${useVoucher ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-2 border-purple-600' : 'bg-gray-50 text-gray-400 border-2 border-gray-100'}`}
+                    >
+                       <Tag size={11}/> PAKAI KUPON
+                    </button>
+                 </div>
+                 
+                 {/* Voucher Code Input */}
+                 <AnimatePresence>
+                    {useVoucher && (
+                       <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden space-y-1.5"
+                       >
+                          <div className="relative">
+                             <input 
+                                type="text"
+                                value={voucherCode}
+                                onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
+                                placeholder="MASUKKAN KODE VOUCHER"
+                                className={`w-full px-3 py-2 rounded-lg text-[10px] font-black uppercase placeholder:text-purple-300 focus:ring-2 transition-all ${
+                                   voucherCode && voucherValid 
+                                      ? 'bg-emerald-50 border-2 border-emerald-400 text-emerald-900 focus:ring-emerald-500' 
+                                      : voucherCode && !voucherValid 
+                                      ? 'bg-rose-50 border-2 border-rose-400 text-rose-900 focus:ring-rose-500'
+                                      : 'bg-purple-50 border-2 border-purple-200 text-purple-900 focus:ring-purple-500'
+                                }`}
+                             />
+                             {voucherCode && (
+                                <div className={`absolute right-2 top-1/2 -translate-y-1/2 ${voucherValid ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                   {voucherValid ? <CheckCircle2 size={14} /> : <X size={14} />}
+                                </div>
+                             )}
+                          </div>
+                          
+                          {voucherCode && voucherValid && (
+                             <motion.div 
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-200"
+                             >
+                                <Sparkles size={10} className="text-emerald-500" />
+                                <span className="text-[8px] font-black text-emerald-700 uppercase">
+                                   Voucher Valid! Diskon {fmt(voucherDiscount)}
+                                </span>
+                             </motion.div>
+                          )}
+                          
+                          {voucherCode && !voucherValid && (
+                             <motion.div 
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex items-center gap-1.5 px-2 py-1 bg-rose-50 rounded-lg border border-rose-200"
+                             >
+                                <X size={10} className="text-rose-500" />
+                                <span className="text-[8px] font-black text-rose-700 uppercase">
+                                   Kode tidak valid atau minimum pembelian belum terpenuhi
+                                </span>
+                             </motion.div>
+                          )}
+                       </motion.div>
+                    )}
+                 </AnimatePresence>
+              </div>
+
               <div className="space-y-1.5">
                  <p className="text-[8px] font-black uppercase text-gray-400 tracking-widest ml-1 uppercase">Payment</p>
                  <div className="space-y-1">
@@ -278,6 +453,21 @@ export default function POS() {
 
               <div className="space-y-1 shrink-0 pb-1">
                  <div className="flex justify-between text-[9px] font-bold text-gray-400"><span>Subtotal</span><span className="text-gray-900">{fmt(form.total_gallons * form.unit_price)}</span></div>
+                 {form.discount > 0 && (
+                    <div className="flex justify-between text-[9px] font-bold text-rose-400">
+                       <span>Diskon Pelanggan</span>
+                       <span>- {fmt(form.discount)}</span>
+                    </div>
+                 )}
+                 {useVoucher && voucherValid && voucherDiscount > 0 && (
+                    <div className="flex justify-between text-[9px] font-bold text-purple-500">
+                       <span className="flex items-center gap-1">
+                          <Tag size={9} />
+                          Diskon Voucher ({voucherCode})
+                       </span>
+                       <span>- {fmt(voucherDiscount)}</span>
+                    </div>
+                 )}
                  <div className="flex justify-between text-[9px] font-bold text-gray-400"><span>Pajak (0%)</span><span className="text-gray-900">Rp 0</span></div>
               </div>
            </div>
