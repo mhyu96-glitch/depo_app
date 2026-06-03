@@ -3,16 +3,38 @@ const db = require('../config/database');
 // Create attendance (check-in) dengan face recognition
 exports.checkIn = async (req, res) => {
   try {
-    const { courier_id, face_data, location_lat, location_lng, device_info } = req.body;
+    const { courier_id, face_data, location_lat, location_lng, device_info, date, notes } = req.body;
     
     // Validation
     if (!courier_id) {
       return res.status(400).json({ message: 'Courier ID wajib diisi' });
     }
 
-    // Simple approach: just try to insert with basic columns that should exist
+    // For simple attendance (non-face), try basic insert
+    if (!face_data) {
+      try {
+        // Simple attendance insert
+        const result = await db.pool.query(
+          'INSERT INTO attendance (courier_id) VALUES ($1) RETURNING *',
+          [courier_id]
+        );
+        
+        return res.json({ 
+          message: 'Absensi berhasil!', 
+          data: result.rows[0] 
+        });
+        
+      } catch (basicError) {
+        console.log('Simple attendance failed:', basicError.message);
+        return res.status(500).json({ 
+          message: 'Gagal menyimpan absensi biasa', 
+          error: basicError.message 
+        });
+      }
+    }
+
+    // For face attendance, try basic insert first
     try {
-      // Try the most basic insert first
       const result = await db.pool.query(
         'INSERT INTO attendance (courier_id) VALUES ($1) RETURNING *',
         [courier_id]
@@ -24,17 +46,11 @@ exports.checkIn = async (req, res) => {
       });
       
     } catch (basicError) {
-      // If basic insert fails, the table might have different structure
-      // Let's try with just an ID to see what happens
-      console.log('Basic insert failed:', basicError.message);
-      
-      // Try to select from table to understand structure
-      const selectResult = await db.pool.query('SELECT * FROM attendance LIMIT 1');
-      console.log('Sample attendance record:', selectResult.rows[0]);
-      
+      console.log('Face attendance failed:', basicError.message);
       return res.status(500).json({ 
-        message: 'Struktur tabel attendance tidak sesuai. Hubungi administrator.',
-        error: basicError.message
+        message: 'Struktur tabel attendance belum sesuai. Perlu database migration.',
+        error: basicError.message,
+        solution: 'Jalankan SQL migration untuk menambahkan kolom yang diperlukan'
       });
     }
 
@@ -128,48 +144,94 @@ exports.getTodayAttendance = async (req, res) => {
 // Get attendance history
 exports.getAttendanceHistory = async (req, res) => {
   try {
-    const { courier_id, start_date, end_date, branch_id } = req.query;
+    const { courier_id, start_date, end_date, branch_id, date } = req.query;
 
-    let query = `
-      SELECT a.*, c.name as courier_name, u.name as created_by_name
-      FROM attendance a
-      LEFT JOIN couriers c ON a.courier_id = c.id
-      LEFT JOIN users u ON a.created_by = u.id
-      WHERE 1=1
-    `;
-    
+    // Start with simple query
+    let query = 'SELECT * FROM attendance WHERE 1=1';
     const params = [];
     let paramCount = 0;
 
     if (courier_id) {
       paramCount++;
-      query += ` AND a.courier_id = $${paramCount}`;
+      query += ` AND courier_id = $${paramCount}`;
       params.push(courier_id);
     }
 
-    if (start_date) {
-      paramCount++;
-      query += ` AND a.date >= $${paramCount}`;
-      params.push(start_date);
-    }
+    // Handle date filtering - try different approaches
+    if (date) {
+      // Single date (for daily view)
+      try {
+        await db.pool.query('SELECT date FROM attendance LIMIT 1');
+        paramCount++;
+        query += ` AND date = $${paramCount}`;
+        params.push(date);
+      } catch (dateError) {
+        try {
+          await db.pool.query('SELECT created_at FROM attendance LIMIT 1');
+          paramCount++;
+          query += ` AND DATE(created_at) = $${paramCount}`;
+          params.push(date);
+        } catch (createdAtError) {
+          // Skip date filter if no date columns
+        }
+      }
+    } else {
+      // Date range filtering
+      if (start_date) {
+        try {
+          await db.pool.query('SELECT date FROM attendance LIMIT 1');
+          paramCount++;
+          query += ` AND date >= $${paramCount}`;
+          params.push(start_date);
+        } catch (dateError) {
+          try {
+            await db.pool.query('SELECT created_at FROM attendance LIMIT 1');
+            paramCount++;
+            query += ` AND DATE(created_at) >= $${paramCount}`;
+            params.push(start_date);
+          } catch (createdAtError) {
+            // Skip start_date filter
+          }
+        }
+      }
 
-    if (end_date) {
-      paramCount++;
-      query += ` AND a.date <= $${paramCount}`;
-      params.push(end_date);
+      if (end_date) {
+        try {
+          await db.pool.query('SELECT date FROM attendance LIMIT 1');
+          paramCount++;
+          query += ` AND date <= $${paramCount}`;
+          params.push(end_date);
+        } catch (dateError) {
+          try {
+            await db.pool.query('SELECT created_at FROM attendance LIMIT 1');
+            paramCount++;
+            query += ` AND DATE(created_at) <= $${paramCount}`;
+            params.push(end_date);
+          } catch (createdAtError) {
+            // Skip end_date filter
+          }
+        }
+      }
     }
 
     if (branch_id) {
-      paramCount++;
-      query += ` AND a.branch_id = $${paramCount}`;
-      params.push(branch_id);
+      try {
+        await db.pool.query('SELECT branch_id FROM attendance LIMIT 1');
+        paramCount++;
+        query += ` AND branch_id = $${paramCount}`;
+        params.push(branch_id);
+      } catch (branchError) {
+        // Skip branch filter if column doesn't exist
+      }
     }
 
-    query += ' ORDER BY a.date DESC, a.check_in_time DESC LIMIT 100';
+    query += ' ORDER BY id DESC LIMIT 100';
 
+    console.log('Attendance history query:', query, 'params:', params);
     const result = await db.pool.query(query, params);
     res.json({ data: result.rows });
   } catch (err) {
+    console.error('Attendance history error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
