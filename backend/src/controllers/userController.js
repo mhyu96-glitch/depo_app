@@ -83,32 +83,55 @@ exports.courierToKasir = async (req, res) => {
       return res.status(400).json({ message: 'courier_id, username, dan password wajib diisi' });
     }
 
+    // Branch filtering: branch_admin hanya bisa rolling kurir cabangnya
+    let courierQuery = 'SELECT * FROM couriers WHERE id = $1';
+    const courierParams = [courier_id];
+    
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      courierQuery += ' AND branch_id = $2';
+      courierParams.push(req.user.branch_id);
+    }
+
     // Ambil data kurir
-    const courierRes = await client.query('SELECT * FROM couriers WHERE id = $1', [courier_id]);
+    const courierRes = await client.query(courierQuery, courierParams);
     if (courierRes.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Kurir tidak ditemukan' });
+      return res.status(404).json({ message: 'Kurir tidak ditemukan atau bukan milik cabang Anda' });
     }
     const courier = courierRes.rows[0];
 
-    // Cek apakah sudah punya akun user
+    // Cek apakah username sudah digunakan
     const existUser = await client.query('SELECT id FROM users WHERE username = $1', [username]);
     if (existUser.rows.length > 0) {
       await client.query('ROLLBACK');
       return res.status(400).json({ message: `Username "${username}" sudah digunakan` });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
-    const userRes = await client.query(
-      'INSERT INTO users (name, username, password, role, branch_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [courier.name, username, hashed, 'kasir', courier.branch_id]
-    );
+    // Cek apakah kurir sudah punya user account
+    if (courier.user_id) {
+      // Jika kurir sudah punya akun user, update role dan credentials
+      const hashed = await bcrypt.hash(password, 10);
+      await client.query(
+        'UPDATE users SET username = $1, password = $2, role = $3 WHERE id = $4',
+        [username, hashed, 'kasir', courier.user_id]
+      );
+      
+      await client.query('COMMIT');
+      return res.json({ message: `${courier.name} berhasil dijadikan kasir dengan username "${username}" (akun existing diupdate)` });
+    } else {
+      // Jika kurir belum punya akun, buat akun baru
+      const hashed = await bcrypt.hash(password, 10);
+      const userRes = await client.query(
+        'INSERT INTO users (name, username, password, role, branch_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [courier.name, username, hashed, 'kasir', courier.branch_id]
+      );
 
-    // Tandai kurir dengan user_id baru
-    await client.query('UPDATE couriers SET user_id = $1 WHERE id = $2', [userRes.rows[0].id, courier_id]);
+      // Hubungkan kurir dengan user baru
+      await client.query('UPDATE couriers SET user_id = $1 WHERE id = $2', [userRes.rows[0].id, courier_id]);
 
-    await client.query('COMMIT');
-    res.json({ message: `${courier.name} berhasil dijadikan kasir dengan username "${username}"` });
+      await client.query('COMMIT');
+      return res.json({ message: `${courier.name} berhasil dijadikan kasir dengan username "${username}" (akun baru dibuat)` });
+    }
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ message: 'Error', error: err.message });
@@ -130,11 +153,21 @@ exports.kasirToCourier = async (req, res) => {
       return res.status(400).json({ message: 'user_id wajib diisi' });
     }
 
+    // Branch filtering: branch_admin hanya bisa rolling user cabangnya
+    let userQuery = 'SELECT * FROM users WHERE id = $1';
+    const userParams = [user_id];
+    
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      userQuery += ' AND branch_id = $2';
+      userParams.push(req.user.branch_id);
+    }
+
     // Ambil data user
-    const userRes = await client.query('SELECT * FROM users WHERE id = $1', [user_id]);
+    const userRes = await client.query(userQuery, userParams);
     if (userRes.rows.length === 0) {
       await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'User tidak ditemukan' });
+      return res.status(404).json({ message: 'User tidak ditemukan atau bukan milik cabang Anda' });
+    }
     }
     const user = userRes.rows[0];
 
