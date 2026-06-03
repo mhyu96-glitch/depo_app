@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { userApi, branchApi } from '../api';
+import { userApi, branchApi, courierApi } from '../api';
 import { 
   UserCog, Plus, Edit2, Trash2, 
   Loader2, X, Shield, Building2, 
@@ -108,12 +108,32 @@ export default function Users() {
     e.preventDefault();
     setRollingLoading(true);
     try {
-      const res = await userApi.kasirToCourier({
-        user_id: rollingUser.id,
-        phone: rollingForm.phone,
-        base_salary: rollingForm.base_salary
-      });
-      alert(res.data.message);
+      // Jika admin, langsung ubah role-nya dan create courier
+      if (rollingUser.role === 'admin') {
+        // Buat data courier dulu
+        const courierRes = await courierApi.create({
+          name: rollingUser.name,
+          phone: rollingForm.phone || '',
+          base_salary: rollingForm.base_salary || 0,
+          branch_id: rollingUser.branch_id
+        });
+        
+        // Update user role menjadi kurir dan hubungkan ke courier
+        await userApi.update(rollingUser.id, {
+          role: 'kurir',
+          courier_id: courierRes.data.data.id
+        });
+        
+        alert(`${rollingUser.name} berhasil diubah menjadi Kurir!`);
+      } else {
+        // Jika kasir, gunakan API kasirToCourier
+        const res = await userApi.kasirToCourier({
+          user_id: rollingUser.id,
+          phone: rollingForm.phone,
+          base_salary: rollingForm.base_salary
+        });
+        alert(res.data.message);
+      }
       setRollingUser(null);
       setRollingForm({ phone: '', base_salary: '' });
       loadData();
@@ -128,12 +148,23 @@ export default function Users() {
     e.preventDefault();
     setCourierToKasirLoading(true);
     try {
-      const res = await userApi.courierToKasir({
-        courier_id: rollingCourier.courier_id,
-        username: courierToKasirForm.username,
-        password: courierToKasirForm.password
-      });
-      alert(res.data.message);
+      // Jika admin, langsung ubah role-nya menjadi kasir
+      if (rollingCourier.role === 'admin') {
+        await userApi.update(rollingCourier.id, {
+          role: 'kasir',
+          username: courierToKasirForm.username,
+          password: courierToKasirForm.password || undefined
+        });
+        alert(`${rollingCourier.name} berhasil diubah menjadi Kasir!`);
+      } else {
+        // Jika kurir, gunakan API courierToKasir
+        const res = await userApi.courierToKasir({
+          courier_id: rollingCourier.courier_id,
+          username: courierToKasirForm.username,
+          password: courierToKasirForm.password
+        });
+        alert(res.data.message);
+      }
       setRollingCourier(null);
       setCourierToKasirForm({ username: '', password: '' });
       loadData();
@@ -212,6 +243,26 @@ export default function Users() {
                   </td>
                   <td className="text-right">
                     <div className="flex justify-end gap-1">
+                      {/* Admin → Kasir / Kurir */}
+                      {u.role === 'admin' && u.is_active && (
+                        <>
+                          <button 
+                            onClick={() => { setRollingUser(u); setRollingForm({ phone: '', base_salary: '' }); }}
+                            className="p-2 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 rounded-lg text-gray-400 hover:text-cyan-500 transition-colors"
+                            title="Jadikan Kurir"
+                          >
+                            <Truck size={16} />
+                          </button>
+                          <button 
+                            onClick={() => { setRollingCourier(u); setCourierToKasirForm({ username: u.username, password: '' }); }}
+                            className="p-2 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg text-gray-400 hover:text-purple-500 transition-colors"
+                            title="Jadikan Kasir"
+                          >
+                            <UserCog size={16} />
+                          </button>
+                        </>
+                      )}
+                      {/* Kasir → Kurir */}
                       {u.role === 'kasir' && u.is_active && (
                         <button 
                           onClick={() => { setRollingUser(u); setRollingForm({ phone: '', base_salary: '' }); }}
@@ -221,6 +272,7 @@ export default function Users() {
                           <Truck size={16} />
                         </button>
                       )}
+                      {/* Kurir → Kasir */}
                       {u.role === 'kurir' && u.is_active && u.courier_id && (
                         <button 
                           onClick={() => { setRollingCourier(u); setCourierToKasirForm({ username: '', password: '' }); }}
@@ -363,7 +415,7 @@ export default function Users() {
                 <div>
                   <p className="font-black text-purple-900 dark:text-purple-100">{rollingUser.name}</p>
                   <p className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest">
-                    Kasir · akan dijadikan Kurir
+                    {rollingUser.role === 'admin' ? 'Admin' : 'Kasir'} · akan dijadikan Kurir
                   </p>
                 </div>
               </div>
@@ -391,7 +443,10 @@ export default function Users() {
 
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
                 <p className="text-xs font-bold text-amber-700 leading-relaxed">
-                  Akun kasir tetap aktif. Data kurir baru akan dibuat dan dihubungkan ke akun ini.
+                  {rollingUser.role === 'admin' 
+                    ? 'Akun admin akan berubah menjadi kurir. Data kurir baru akan dibuat dan role user diubah menjadi kurir.'
+                    : 'Akun kasir tetap aktif. Data kurir baru akan dibuat dan dihubungkan ke akun ini.'
+                  }
                 </p>
               </div>
 
@@ -431,7 +486,7 @@ export default function Users() {
                 <div>
                   <p className="font-black text-blue-900 dark:text-blue-100">{rollingCourier.name}</p>
                   <p className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
-                    Kurir · akan dijadikan Kasir
+                    {rollingCourier.role === 'admin' ? 'Admin' : 'Kurir'} · akan dijadikan Kasir
                   </p>
                 </div>
               </div>
@@ -449,10 +504,12 @@ export default function Users() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Password Login Kasir</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">
+                  Password Login Kasir {rollingCourier.role === 'admin' && '(Opsional - kosongkan jika tidak ingin mengubah)'}
+                </label>
                 <input
                   type="password"
-                  required
+                  required={rollingCourier.role !== 'admin'}
                   className="input w-full py-4 px-5"
                   placeholder="••••••••"
                   value={courierToKasirForm.password}
@@ -462,7 +519,10 @@ export default function Users() {
 
               <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
                 <p className="text-xs font-bold text-amber-700 leading-relaxed">
-                  Akun kasir baru akan dibuat dan dihubungkan ke data kurir ini. Kurir tetap bisa login dengan akun barunya.
+                  {rollingCourier.role === 'admin'
+                    ? 'Role admin akan diubah menjadi kasir. Username dan password akan digunakan untuk login sebagai kasir.'
+                    : 'Akun kasir baru akan dibuat dan dihubungkan ke data kurir ini. Kurir tetap bisa login dengan akun barunya.'
+                  }
                 </p>
               </div>
 
