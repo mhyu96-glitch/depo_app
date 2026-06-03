@@ -3,10 +3,11 @@ import { attendanceApi, courierApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { 
   ClipboardCheck, UserCheck, Calendar, 
-  Search, Plus, Trash2, Loader2, AlertCircle, CheckCircle 
+  Search, Plus, Trash2, Loader2, AlertCircle, CheckCircle, Camera 
 } from 'lucide-react';
 
 import PillSelect from '../components/PillSelect';
+import FaceAttendance from '../components/FaceAttendance';
 
 export default function Attendance() {
   const { user } = useAuth();
@@ -17,6 +18,8 @@ export default function Attendance() {
   const [selectedCourier, setSelectedCourier] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showFaceAttendance, setShowFaceAttendance] = useState(false);
+  const [faceAttendanceType, setFaceAttendanceType] = useState('check_in');
 
   const loadData = async () => {
     setLoading(true);
@@ -116,7 +119,7 @@ export default function Attendance() {
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
-              <div className="pt-2">
+              <div className="pt-2 space-y-3">
                 <button 
                   type="submit" 
                   disabled={submitting}
@@ -124,6 +127,28 @@ export default function Attendance() {
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
                   {submitting ? 'Memproses...' : 'Simpan Kehadiran'}
+                </button>
+
+                {/* Face Attendance Button */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="px-2 bg-white text-gray-500">ATAU</span>
+                  </div>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setFaceAttendanceType('check_in');
+                    setShowFaceAttendance(true);
+                  }}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-black text-[10px] uppercase tracking-widest shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-2"
+                >
+                  <Camera size={16} />
+                  Absen dengan Wajah
                 </button>
               </div>
             </form>
@@ -184,6 +209,19 @@ export default function Attendance() {
           </div>
         </div>
       </div>
+
+      {/* Face Attendance Modal */}
+      {showFaceAttendance && (
+        <FaceAttendance
+          type={faceAttendanceType}
+          onSuccess={(data) => {
+            setShowFaceAttendance(false);
+            loadData(); // Reload attendance list
+            alert('Absensi wajah berhasil!');
+          }}
+          onCancel={() => setShowFaceAttendance(false)}
+        />
+      )}
     </div>
   );
 }
