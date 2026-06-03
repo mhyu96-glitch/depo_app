@@ -85,7 +85,7 @@ const AppRoutes = () => {
         <Route path="reports/cashflow"   element={<PrivateRoute superAdminOnly><CashFlowReport /></PrivateRoute>} />
         <Route path="reports/debt"       element={<PrivateRoute superAdminOnly><DebtReport /></PrivateRoute>} />
         <Route path="reports/profit-loss"element={<PrivateRoute superAdminOnly><ProfitLoss /></PrivateRoute>} />
-        <Route path="reports/voucher"    element={<PrivateRoute superAdminOnly><VoucherReport /></PrivateRoute>} />
+        <Route path="reports/voucher"    element={<PrivateRoute adminOnly><VoucherReport /></PrivateRoute>} />
         <Route path="analytics"          element={<PrivateRoute adminOnly><Analytics /></PrivateRoute>} />
         <Route path="maps"               element={<PrivateRoute adminOnly><Maps /></PrivateRoute>} />
         <Route path="health"             element={<PrivateRoute adminOnly><AssetHealth /></PrivateRoute>} />

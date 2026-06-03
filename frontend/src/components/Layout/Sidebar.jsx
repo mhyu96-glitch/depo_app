@@ -105,6 +105,7 @@ export default function Sidebar({ open, onClose, collapsed }) {
               <NavItem to="/audit"               icon="shield" label="Audit Log" color="text-gray-500" onClick={onClose} />
               <NavItem to="/whatsapp"            icon="chat" label="WhatsApp Center" color="text-green-500" onClick={onClose} />
               <NavItem to="/iot"                 icon="sensors" label="IoT Monitor" color="text-orange-500" onClick={onClose} />
+              <NavItem to="/reports/voucher"     icon="local_offer" label="Daily Kupon Tracking" color="text-purple-500" onClick={onClose} />
             </NavGroup>
 
             <NavGroup icon="business_center" label="Operasional Bisnis" color="text-sky-500" collapsed={collapsed}>
@@ -120,7 +121,6 @@ export default function Sidebar({ open, onClose, collapsed }) {
                 <NavItem to="/reports/cashflow"    icon="swap_horiz" label="Arus Kas" color="text-blue-500" onClick={onClose} />
                 <NavItem to="/reports/debt"        icon="error_outline" label="Hutang" color="text-red-500" onClick={onClose} />
                 <NavItem to="/reports/profit-loss" icon="analytics" label="Laba Rugi" color="text-indigo-500" onClick={onClose} />
-                <NavItem to="/reports/voucher"     icon="local_offer" label="Kupon & Voucher" color="text-purple-500" onClick={onClose} />
               </NavGroup>
             )}
 

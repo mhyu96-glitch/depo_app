@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 const fmt = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
 export default function VoucherReport() {
-  const { user } = useAuth();
+  const { user, isSuperAdmin } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
@@ -29,7 +29,8 @@ export default function VoucherReport() {
     start_date: new Date().toISOString().split('T')[0],
     end_date: new Date().toISOString().split('T')[0],
     voucher_type: '',
-    search: ''
+    search: '',
+    ...(isSuperAdmin && { branch_id: '' })
   });
 
   const loadData = async () => {
@@ -38,11 +39,23 @@ export default function VoucherReport() {
       const params = {
         start_date: filters.start_date,
         end_date: filters.end_date,
-        branch_id: user?.branch_id,
         has_voucher: true,
         ...filters.voucher_type && { voucher_type: filters.voucher_type },
         ...filters.search && { voucher_code: filters.search }
       };
+
+      // Set branch filter based on user role
+      if (isSuperAdmin) {
+        // Superadmin bisa pilih cabang atau lihat semua
+        if (filters.branch_id) {
+          params.branch_id = filters.branch_id;
+        }
+      } else {
+        // Branch admin hanya lihat cabangnya
+        if (user?.branch_id) {
+          params.branch_id = user.branch_id;
+        }
+      }
 
       const response = await transactionApi.getAll(params);
       const transactions = response.data.data || [];
@@ -124,10 +137,13 @@ export default function VoucherReport() {
           </div>
           <div>
             <h1 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tighter">
-              Laporan Kupon & Voucher
+              {isSuperAdmin ? 'Laporan Kupon & Voucher' : 'Daily Kupon Tracking'}
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              Analisis penggunaan kupon BL001, DL001 & manual
+              {isSuperAdmin 
+                ? 'Analisis penggunaan kupon BL001, DL001 & manual semua cabang'
+                : `Tracking harian kupon cabang ${user?.branch_name || 'Anda'}`
+              }
             </p>
           </div>
         </div>
@@ -141,7 +157,7 @@ export default function VoucherReport() {
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className={`grid gap-4 ${isSuperAdmin ? 'grid-cols-1 md:grid-cols-5' : 'grid-cols-1 md:grid-cols-4'}`}>
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
               Tanggal Mulai
@@ -164,6 +180,22 @@ export default function VoucherReport() {
               onChange={(e) => setFilters({...filters, end_date: e.target.value})}
             />
           </div>
+          {isSuperAdmin && (
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
+                Cabang
+              </label>
+              <select
+                className="input w-full py-3 px-4"
+                value={filters.branch_id || ''}
+                onChange={(e) => setFilters({...filters, branch_id: e.target.value})}
+              >
+                <option value="">Semua Cabang</option>
+                <option value="1">Cabang Pusat</option>
+                <option value="15">Cabang Mangkupalas</option>
+              </select>
+            </div>
+          )}
           <div>
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">
               Tipe Kupon
