@@ -185,9 +185,9 @@ exports.getApprovalHistory = async (req, res) => {
 
 module.exports = { 
   generateTransactionCode,
-  requestEditApproval, 
-  requestDeleteApproval, 
-  processApproval,
-  getPendingApprovals,
-  getApprovalHistory
+  requestEditApproval: exports.requestEditApproval, 
+  requestDeleteApproval: exports.requestDeleteApproval, 
+  processApproval: exports.processApproval,
+  getPendingApprovals: exports.getPendingApprovals,
+  getApprovalHistory: exports.getApprovalHistory
 };
