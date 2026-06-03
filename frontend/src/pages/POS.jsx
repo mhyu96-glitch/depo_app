@@ -282,22 +282,6 @@ export default function POS() {
       <form onSubmit={handleSubmit} className="main-grid">
         {/* LEFT CONTENT */}
         <div className="left-content">
-          
-          {/* Product Header (SLIM) */}
-          <div className="bg-gradient-to-br from-white to-gray-50/50 p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group relative overflow-hidden shrink-0">
-             <div className="absolute top-0 left-0 w-1 h-full bg-primary-600" />
-             <div className="space-y-1.5">
-                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-primary-600 text-white text-[7px] font-black uppercase tracking-widest leading-none"><Sparkles size={8}/> Layanan Utama</span>
-                <div className="space-y-0.5">
-                   <h2 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-none">{products[0]?.name || 'ISI ULANG GALON 19L'}</h2>
-                   <p className="text-[9px] text-gray-400 font-medium">Filtrasi 12 tahap untuk kesegaran maksimal.</p>
-                </div>
-             </div>
-             <div className="w-12 h-12 rounded-lg bg-white border border-gray-100 shadow-md flex items-center justify-center text-primary-500">
-                <Droplet size={24} fill="currentColor" className="opacity-10" />
-             </div>
-          </div>
-
           {/* Middle Row: Qty & Prices (SLIM) */}
           <div className="flex gap-3 items-stretch flex-1 min-h-0">
              <div className="qty-card">
