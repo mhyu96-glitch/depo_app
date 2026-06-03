@@ -61,7 +61,27 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const { name, phone, branch_id, base_salary, is_active } = req.body;
+    let { name, phone, branch_id, base_salary, is_active } = req.body;
+    
+    // Branch filtering: branch_admin hanya bisa update kurir cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      branch_id = req.user.branch_id;
+      
+      // Verifikasi kurir adalah milik cabang user
+      const courierCheck = await db.pool.query(
+        'SELECT branch_id FROM couriers WHERE id = $1',
+        [req.params.id]
+      );
+      
+      if (courierCheck.rows.length === 0) {
+        return res.status(404).json({ message: 'Kurir tidak ditemukan' });
+      }
+      
+      if (courierCheck.rows[0].branch_id !== req.user.branch_id) {
+        return res.status(403).json({ message: 'Akses ditolak: kurir bukan milik cabang Anda' });
+      }
+    }
+    
     await db.pool.query(
       'UPDATE couriers SET name=$1, phone=$2, branch_id=$3, base_salary=$4, is_active=$5 WHERE id=$6',
       [name, phone || null, parseInt(branch_id), parseFloat(base_salary) || 0, is_active ?? true, req.params.id]
@@ -74,6 +94,22 @@ exports.update = async (req, res) => {
 
 exports.remove = async (req, res) => {
   try {
+    // Branch filtering: branch_admin hanya bisa delete kurir cabangnya
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      const courierCheck = await db.pool.query(
+        'SELECT branch_id FROM couriers WHERE id = $1',
+        [req.params.id]
+      );
+      
+      if (courierCheck.rows.length === 0) {
+        return res.status(404).json({ message: 'Kurir tidak ditemukan' });
+      }
+      
+      if (courierCheck.rows[0].branch_id !== req.user.branch_id) {
+        return res.status(403).json({ message: 'Akses ditolak: kurir bukan milik cabang Anda' });
+      }
+    }
+    
     await db.pool.query('UPDATE couriers SET is_active = false WHERE id = $1', [req.params.id]);
     res.json({ message: 'Kurir dinonaktifkan' });
   } catch (err) {
