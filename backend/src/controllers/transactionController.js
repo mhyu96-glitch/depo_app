@@ -3,9 +3,10 @@ const auditController = require('./auditController');
 
 exports.getAll = async (req, res) => {
   try {
-    const { branch_id, start_date, end_date } = req.query;
+    const { branch_id, start_date, end_date, has_voucher, voucher_type, voucher_code } = req.query;
     let query = 'SELECT * FROM transactions WHERE 1=1';
     const params = [];
+    
     if (branch_id) {
       params.push(branch_id);
       query += ` AND branch_id = $${params.length}`;
@@ -14,6 +15,18 @@ exports.getAll = async (req, res) => {
       params.push(start_date, end_date);
       query += ` AND created_at BETWEEN $${params.length - 1} AND $${params.length}`;
     }
+    if (has_voucher === 'true') {
+      query += ` AND voucher_code IS NOT NULL AND voucher_code != ''`;
+    }
+    if (voucher_type) {
+      params.push(voucher_type);
+      query += ` AND voucher_type = $${params.length}`;
+    }
+    if (voucher_code) {
+      params.push(`%${voucher_code}%`);
+      query += ` AND voucher_code ILIKE $${params.length}`;
+    }
+    
     query += ' ORDER BY created_at DESC';
     const result = await db.pool.query(query, params);
     res.json({ data: result.rows });
@@ -38,7 +51,7 @@ exports.create = async (req, res) => {
     customer_id, customer_name, transaction_type, courier_id, 
     subtotal, discount, total_amount, payment_method, payment_status, 
     notes, branch_id, commission_amount, items, total_gallons,
-    priority, lat, lng
+    priority, lat, lng, voucher_code, voucher_discount, voucher_type
   } = req.body;
   const invoice_number = 'INV-' + Date.now();
 
@@ -53,14 +66,16 @@ exports.create = async (req, res) => {
         invoice_number, customer_id, customer_name, transaction_type, 
         courier_id, subtotal, discount, total_amount, payment_method, 
         payment_status, notes, branch_id, commission_amount, 
-        total_gallons, delivery_status, priority, lat, lng
+        total_gallons, delivery_status, priority, lat, lng,
+        voucher_code, voucher_discount, voucher_type
       ) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
       [
         invoice_number, customer_id || null, customer_name, transaction_type, 
         courier_id || null, subtotal, discount, total_amount, payment_method, 
         payment_status, notes, branch_id, commission_amount, 
-        total_gallons || 0, delivery_status, priority || 'normal', lat || null, lng || null
+        total_gallons || 0, delivery_status, priority || 'normal', lat || null, lng || null,
+        voucher_code || null, voucher_discount || 0, voucher_type || null
       ]
     );
     const transactionId = result.rows[0].id;
