@@ -2,7 +2,13 @@ const db = require('../config/database');
 
 exports.getSuppliers = async (req, res) => {
   try {
-    const { rows } = await db.pool.query('SELECT * FROM suppliers ORDER BY name ASC');
+    const { rows } = await db.pool.query(`
+      SELECT *,
+        contact_name as contact,
+        payment_terms_days as terms
+      FROM suppliers
+      ORDER BY name ASC
+    `);
     res.json({ data: rows });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -32,8 +38,10 @@ exports.updateSupplier = async (req, res) => {
 exports.getPurchaseOrders = async (req, res) => {
   try {
     const { rows } = await db.pool.query(
-      `SELECT po.*, s.name as supplier_name FROM purchase_orders po 
-       LEFT JOIN suppliers s ON po.supplier_id = s.id ORDER BY po.ordered_at DESC`
+      `SELECT po.*, po.items_description as items, s.name as supplier_name
+       FROM purchase_orders po
+       LEFT JOIN suppliers s ON po.supplier_id = s.id
+       ORDER BY po.created_at DESC`
     );
     res.json({ data: rows });
   } catch (err) { res.status(500).json({ message: err.message }); }

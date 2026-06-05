@@ -19,7 +19,22 @@ exports.getActive = async (req, res) => {
        WHERE s.user_id=$1 AND s.status='open' LIMIT 1`,
       [req.user.id]
     );
-    res.json({ data: rows[0] || null });
+    if (!rows[0]) return res.json({ data: null });
+
+    const salesRes = await db.pool.query(
+      `SELECT COALESCE(SUM(total_amount),0) as total, COUNT(*) as count
+       FROM transactions
+       WHERE user_id=$1 AND created_at >= $2`,
+      [req.user.id, rows[0].opened_at]
+    );
+
+    res.json({
+      data: {
+        ...rows[0],
+        total_sales: parseFloat(salesRes.rows[0].total),
+        total_transactions: parseInt(salesRes.rows[0].count, 10)
+      }
+    });
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
@@ -50,10 +65,35 @@ exports.close = async (req, res) => {
     const total_sales = parseFloat(salesRes.rows[0].total);
     const expected = parseFloat(shift.opening_cash) + total_sales;
     const diff = parseFloat(closing_cash) - expected;
+    const columnsRes = await db.pool.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='shifts'
+    `);
+    const columns = new Set(columnsRes.rows.map(row => row.column_name));
+    const fields = [
+      'status=$1',
+      'closing_cash=$2',
+      'expected_cash=$3',
+      'difference=$4',
+      'closed_at=NOW()',
+      'notes=$5'
+    ];
+    const params = ['closed', closing_cash, expected, diff, notes];
+
+    if (columns.has('total_sales')) {
+      params.push(total_sales);
+      fields.push(`total_sales=$${params.length}`);
+    }
+    if (columns.has('total_transactions')) {
+      params.push(salesRes.rows[0].count);
+      fields.push(`total_transactions=$${params.length}`);
+    }
+
+    params.push(req.params.id);
     const { rows } = await db.pool.query(
-      `UPDATE shifts SET status='closed', closing_cash=$1, expected_cash=$2, difference=$3, 
-       total_sales=$4, total_transactions=$5, closed_at=NOW(), notes=$6 WHERE id=$7 RETURNING *`,
-      [closing_cash, expected, diff, total_sales, salesRes.rows[0].count, notes, req.params.id]
+      `UPDATE shifts SET ${fields.join(', ')} WHERE id=$${params.length} RETURNING *`,
+      params
     );
     res.json({ data: rows[0] });
   } catch (err) { res.status(500).json({ message: err.message }); }

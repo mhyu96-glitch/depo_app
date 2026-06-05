@@ -109,21 +109,17 @@ export default function CourierApp() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/transactions/all-deliveries'); 
-      const allData = res.data.data || [];
-      if (allData.length === 0) {
-        throw new Error('No real data');
+      const cid = user?.courier_id;
+      if (!cid) {
+        throw new Error('Courier ID tidak ditemukan');
       }
-      setDeliveries(allData);
-      updateStats(allData.filter(d => d.courier_id === user?.courier_id));
+      const res = await api.get(`/transactions/courier/${cid}`);
+      const assignedData = res.data.data || [];
+      setDeliveries(assignedData);
+      updateStats(assignedData.filter(d => d.courier_id === cid));
     } catch (_) {
       const cid = user?.courier_id || 1;
-      const myMockData = (MOCK_DELIVERIES || []).map(d => {
-          if (d.courier_id !== cid && d.courier_id !== null) {
-              return { ...d, taken_by_name: d.courier_id === 2 ? 'Budi' : 'Agus' };
-          }
-          return d;
-      });
+      const myMockData = (MOCK_DELIVERIES || []).filter(d => d.courier_id === cid);
       setDeliveries(myMockData);
       updateStats(myMockData.filter(d => d.courier_id === cid));
     }
@@ -141,24 +137,6 @@ export default function CourierApp() {
   }
 
   useEffect(() => { loadData(); }, []);
-
-  const claimTask = async (id) => {
-    setLoading(true);
-    const token = localStorage.getItem('token');
-    if (token === 'demo-token') {
-        setDeliveries(prev => prev.map(d => d.id === id ? { ...d, courier_id: user.courier_id, taken_by_name: user.name } : d));
-        triggerSuccess();
-    } else {
-        try {
-            await api.patch(`/transactions/${id}/claim`, { courier_id: user.courier_id });
-            triggerSuccess(); loadData();
-        } catch (_) {
-            setDeliveries(prev => prev.map(d => d.id === id ? { ...d, courier_id: user.courier_id, taken_by_name: user.name } : d));
-            triggerSuccess();
-        }
-    }
-    setLoading(false);
-  }
 
   const markDelivered = async (id) => {
     setCompleting(id);
@@ -239,12 +217,12 @@ export default function CourierApp() {
                         user={user} loading={loading} loadData={loadData} 
                         deliveries={deliveries || []} markDelivered={markDelivered} 
                         openMaps={openMaps} completing={completing} 
-                        logout={logout} showConfirm={showConfirm} onClaim={claimTask}
+                        logout={logout} showConfirm={showConfirm}
                         delivered={(deliveries || []).filter(d => d.delivery_status === 'delivered' && d.courier_id === user?.courier_id)}
                         COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode}
                     />
                 )}
-                {activeTab === 'peta' && <PetaView deliveries={deliveries || []} user={user} onClaim={claimTask} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
+                {activeTab === 'peta' && <PetaView deliveries={deliveries || []} user={user} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
                 {activeTab === 'rekap' && <RekapView delivered={(deliveries || []).filter(d => d.delivery_status === 'delivered' && d.courier_id === user?.courier_id)} user={user} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
                 {activeTab === 'bonus' && <BonusView deliveredCount={(deliveries || []).filter(d => d.delivery_status === 'delivered' && d.courier_id === user?.courier_id).length} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
             </AnimatePresence>
@@ -288,11 +266,9 @@ function TabButton({ icon: Icon, label, onClick, active = false }) {
   );
 }
 
-function TugasView({ user, loadData, deliveries = [], markDelivered, openMaps, completing, logout, showConfirm, onClaim, delivered = [], COLORS, toggleTheme, themeMode }) {
+function TugasView({ user, loadData, deliveries = [], markDelivered, openMaps, completing, logout, showConfirm, delivered = [], COLORS, toggleTheme, themeMode }) {
     const safeDeliveries = deliveries || [];
     const myTasks = safeDeliveries.filter(d => d.courier_id === user?.courier_id && d.delivery_status !== 'delivered');
-    const availableTasks = safeDeliveries.filter(d => d.courier_id === null && d.delivery_status !== 'delivered');
-    const othersTasks = safeDeliveries.filter(d => d.courier_id !== null && d.courier_id !== user?.courier_id && d.delivery_status !== 'delivered');
     const totalMyTasks = myTasks.length + delivered.length;
     const progressPct = totalMyTasks > 0 ? Math.min((delivered.length / totalMyTasks) * 100, 100) : 0;
 
@@ -354,34 +330,10 @@ function TugasView({ user, loadData, deliveries = [], markDelivered, openMaps, c
                     ) : (
                         <div className="bg-white rounded-[2.5rem] p-12 text-center border border-dashed border-slate-200">
                             <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-5 text-slate-300"><CheckCircle size={32} /></div>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">No active tasks.<br/>Check the global queue.</p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">Belum ada tugas aktif.<br/>Tunggu penugasan dari kasir.</p>
                         </div>
                     )}
                 </div>
-
-                {/* Global Pool */}
-                <div className="space-y-6">
-                    <div className="flex items-center gap-3 px-3">
-                         <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100"><Package size={16} /></div>
-                         <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Global Task Pool</h3>
-                    </div>
-                    <div className="space-y-5">
-                        {availableTasks.length > 0 ? availableTasks.map(d => <DeliveryCard key={d.id} delivery={d} onClaim={onClaim} user={user} COLORS={COLORS} />) : (
-                            <div className="p-10 text-center text-slate-300 font-black text-[9px] uppercase tracking-widest border border-slate-100 rounded-[2.5rem]">Waiting for orders...</div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Team Updates */}
-                {othersTasks.length > 0 && (
-                    <div className="space-y-6 opacity-50 pb-10">
-                        <div className="flex items-center gap-3 px-3">
-                             <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200"><Truck size={16} /></div>
-                             <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-slate-400">Team Status</h3>
-                        </div>
-                        <div className="space-y-5">{othersTasks.map(d => <DeliveryCard key={d.id} delivery={d} user={user} COLORS={COLORS} />)}</div>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -393,12 +345,13 @@ function MapFlyHandler({ target }) {
     return null;
 }
 
-function PetaView({ deliveries = [], user, onClaim, COLORS, toggleTheme, themeMode }) {
+function PetaView({ deliveries = [], user, COLORS, toggleTheme, themeMode }) {
     const [search, setSearch] = useState('');
     const [targetLoc, setTargetLoc] = useState(null);
     const samarindaCenter = [-0.5021, 117.1536];
     const safeDeliveries = deliveries || [];
-    const filtered = safeDeliveries.filter(d => d.delivery_status !== 'delivered' && (d.customer_name.toLowerCase().includes(search.toLowerCase()) || d.address.toLowerCase().includes(search.toLowerCase())));
+    const assignedDeliveries = safeDeliveries.filter(d => d.courier_id === user?.courier_id && d.delivery_status !== 'delivered');
+    const filtered = assignedDeliveries.filter(d => (d.customer_name || '').toLowerCase().includes(search.toLowerCase()) || (d.address || '').toLowerCase().includes(search.toLowerCase()));
     const handleSelect = (d) => { setTargetLoc([d.lat, d.lng]); setSearch(''); };
     return (
         <div className="h-full flex flex-col relative transition-colors duration-500" style={{ backgroundColor: COLORS.bg }}>
@@ -432,13 +385,11 @@ function PetaView({ deliveries = [], user, onClaim, COLORS, toggleTheme, themeMo
                 <MapContainer center={samarindaCenter} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false}>
                     <TileLayer url="http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}" subdomains={['mt0','mt1','mt2','mt3']} attribution='&copy; Google' />
                     <MapFlyHandler target={targetLoc} />
-                    {(deliveries || []).filter(d => d.delivery_status !== 'delivered').map(d => {
-                        const isMine = d.courier_id === user?.courier_id;
-                        const isAvailable = d.courier_id === null;
+                    {assignedDeliveries.map(d => {
                         const icon = L.divIcon({
                             className: 'custom-marker',
-                            html: `<div class="w-11 h-11 rounded-[1.2rem] border-2 border-white shadow-2xl flex items-center justify-center ${isMine ? 'bg-blue-600' : isAvailable ? 'bg-emerald-500' : 'bg-slate-400'} text-white shadow-lg transform hover:scale-110 transition-all">
-                                    <div class="w-2 h-2 bg-white rounded-full ${isMine ? 'animate-pulse' : ''}"></div>
+                            html: `<div class="w-11 h-11 rounded-[1.2rem] border-2 border-white shadow-2xl flex items-center justify-center bg-blue-600 text-white shadow-lg transform hover:scale-110 transition-all">
+                                    <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
                                    </div>`,
                             iconSize: [44, 44]
                         });
@@ -450,10 +401,10 @@ function PetaView({ deliveries = [], user, onClaim, COLORS, toggleTheme, themeMo
                                             <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 border border-slate-100"><User size={24} /></div>
                                             <div>
                                                 <p style={{ color: COLORS.textPrimary }} className="font-black text-sm">{d.customer_name}</p>
-                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{isAvailable ? 'GLOBAL POOL' : `HANDLED BY ${d.taken_by_name}`}</p>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">Ditugaskan oleh kasir</p>
                                             </div>
                                         </div>
-                                        {isAvailable ? <button onClick={() => onClaim(d.id)} className="w-full bg-blue-600 text-white py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-blue-600/20 transition-all active:scale-95">CLAIM ASSIGNMENT</button> : isMine ? <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}`)} className="w-full bg-slate-900 text-white py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Navigation size={14} /> LAUNCH NAV</button> : <div className="text-center py-3.5 bg-slate-50 text-slate-400 rounded-2xl text-[9px] font-black uppercase tracking-widest border border-slate-100">TASK OCCUPIED</div>}
+                                        <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${d.lat},${d.lng}`)} className="w-full bg-slate-900 text-white py-3.5 rounded-2xl text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"><Navigation size={14} /> LAUNCH NAV</button>
                                     </div>
                                 </Popup>
                             </Marker>
@@ -565,13 +516,12 @@ function BonusView({ deliveredCount, COLORS, toggleTheme, themeMode }) {
     );
 }
 
-function DeliveryCard({ delivery: d, onComplete, onMaps, completing, onClaim, user, COLORS }) {
+function DeliveryCard({ delivery: d, onComplete, onMaps, completing, user, COLORS }) {
   const isCompleting = completing === d.id;
   const isMine = d.courier_id === user?.courier_id;
-  const isAvailable = d.courier_id === null;
   return (
     <motion.div layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} style={{ backgroundColor: COLORS.card, borderColor: COLORS.border, boxShadow: COLORS.cardShadow }} className="rounded-[2.2rem] p-7 border relative overflow-hidden group transition-all duration-500">
-      {!isMine && !isAvailable && <div style={{ backgroundColor: COLORS.isDark ? 'rgba(245,158,11,0.1)' : '#f1f5f9', color: COLORS.isDark ? '#f59e0b' : '#64748b', borderColor: COLORS.border }} className="absolute top-0 right-0 px-5 py-2 text-[8px] font-black uppercase rounded-bl-2xl border-l border-b">Assigned: {d.taken_by_name}</div>}
+      {!isMine && <div style={{ backgroundColor: COLORS.isDark ? 'rgba(245,158,11,0.1)' : '#f1f5f9', color: COLORS.isDark ? '#f59e0b' : '#64748b', borderColor: COLORS.border }} className="absolute top-0 right-0 px-5 py-2 text-[8px] font-black uppercase rounded-bl-2xl border-l border-b">Bukan tugas Anda</div>}
       
       <div className="flex justify-between items-start mb-6">
         <div className="space-y-3">
@@ -605,11 +555,9 @@ function DeliveryCard({ delivery: d, onComplete, onMaps, completing, onClaim, us
                     {isCompleting ? 'VERIFYING...' : 'FINISH TASK'}
                  </motion.button>
              </>
-         ) : isAvailable ? (
-             <motion.button whileTap={{ scale: 0.95 }} onClick={() => onClaim(d.id)} className="w-full py-5 rounded-2xl bg-blue-600 text-white font-black text-[10px] uppercase tracking-[0.4em] shadow-xl shadow-blue-600/20 hover:bg-blue-700 transition-all">CLAIM ORDER</motion.button>
          ) : (
             <div style={{ backgroundColor: COLORS.isDark ? 'rgba(0,0,0,0.2)' : '#f8fafc', borderColor: COLORS.border }} className="w-full py-5 rounded-2xl border flex items-center justify-center gap-3 text-slate-400 text-[9px] font-black uppercase tracking-[0.3em]">
-                <Clock size={16} /> ORDER IN PROGRESS
+                <Clock size={16} /> MENUNGGU PENUGASAN KASIR
             </div>
          )}
       </div>

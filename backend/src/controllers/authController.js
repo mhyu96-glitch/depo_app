@@ -27,7 +27,8 @@ exports.login = async (req, res) => {
   try {
     // Join dengan tabel branches untuk validasi dan ambil nama cabang
     const result = await db.pool.query(
-      `SELECT u.*, b.name as branch_name 
+      `SELECT u.*, b.name as branch_name,
+        (SELECT id FROM couriers WHERE user_id = u.id AND is_active = true LIMIT 1) as courier_id
        FROM users u 
        LEFT JOIN branches b ON u.branch_id = b.id 
        WHERE u.username = $1 AND u.is_active = true`, 
@@ -72,7 +73,8 @@ exports.login = async (req, res) => {
           username: user.username, 
           role: user.role, 
           branch_id: user.branch_id,
-          branch_name: user.branch_name
+          branch_name: user.branch_name,
+          courier_id: user.courier_id
         }
       }
     });
@@ -89,7 +91,8 @@ exports.getMe = async (req, res) => {
 
   try {
     const result = await db.pool.query(
-      `SELECT u.*, b.name as branch_name 
+      `SELECT u.*, b.name as branch_name,
+        (SELECT id FROM couriers WHERE user_id = u.id AND is_active = true LIMIT 1) as courier_id
        FROM users u 
        LEFT JOIN branches b ON u.branch_id = b.id 
        WHERE u.id = $1`, 

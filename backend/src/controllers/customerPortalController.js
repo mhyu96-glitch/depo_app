@@ -63,14 +63,30 @@ exports.lookup = async (req, res) => {
 
 // Place a new order request
 exports.placeOrder = async (req, res) => {
-  const { customer_id, phone, quantity, address, notes } = req.body;
+  const { customer_id, phone, quantity, address, notes, is_guest } = req.body;
   try {
     const invoice_number = 'INV-PORTAL-' + Date.now();
-    const cust = await db.pool.query('SELECT name, branch_id FROM customers WHERE id = $1', [customer_id]);
-    if (!cust.rows.length) return res.status(404).json({ message: 'Customer tidak ditemukan' });
-    const customer_name = cust.rows[0].name;
-    const branch_id = cust.rows[0].branch_id || 1;
-    const total_amount = quantity * 5000;
+    const qty = Math.max(1, parseInt(quantity, 10) || 1);
+    let customer_name = phone ? `Tamu ${phone}` : 'Tamu Portal';
+    let branch_id = 1;
+    let finalCustomerId = null;
+
+    if (customer_id) {
+      const cust = await db.pool.query('SELECT name, branch_id FROM customers WHERE id = $1', [customer_id]);
+      if (!cust.rows.length) return res.status(404).json({ message: 'Customer tidak ditemukan' });
+      customer_name = cust.rows[0].name;
+      branch_id = cust.rows[0].branch_id || 1;
+      finalCustomerId = customer_id;
+    } else if (!is_guest) {
+      return res.status(400).json({ message: 'Customer wajib diisi untuk pesanan member' });
+    }
+
+    const delivery_fee = qty >= 5 ? 0 : 2000;
+    const subtotal = qty * 5000;
+    const total_amount = subtotal + delivery_fee;
+    const orderNotes = [notes, address ? `Alamat: ${address}` : null, phone ? `WA: ${phone}` : null]
+      .filter(Boolean)
+      .join(' | ') || 'Order via Customer Portal';
 
     const result = await db.pool.query(
       `INSERT INTO transactions (
@@ -81,16 +97,18 @@ exports.placeOrder = async (req, res) => {
       ) 
        VALUES ($1, $2, $3, 'delivery', $4, 0, $5, 'cash', 'unpaid', $6, $7, $8, 'pending', 'normal') RETURNING *`,
       [
-        invoice_number, customer_id, customer_name,
-        total_amount, total_amount, notes || 'Order via Customer Portal', branch_id,
-        quantity
+        invoice_number, finalCustomerId, customer_name,
+        subtotal, total_amount, orderNotes, branch_id,
+        qty
       ]
     );
 
     res.json({ 
       data: { 
         status: 'pending', 
-        message: `Pesanan ${quantity} galon berhasil dibuat! Antrean Anda sedang diproses.`,
+        message: `Pesanan ${qty} galon berhasil dibuat! Antrean Anda sedang diproses.`,
+        invoice: invoice_number,
+        total: total_amount,
         order: result.rows[0]
       } 
     });

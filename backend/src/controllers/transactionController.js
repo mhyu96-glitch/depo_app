@@ -1,6 +1,39 @@
 const db = require('../config/database');
 const auditController = require('./auditController');
 
+const deductInventoryItem = async (client, branchId, namePatterns, amount, reason) => {
+  if (!amount || amount <= 0) return;
+
+  const columnsResult = await client.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'inventory'
+  `);
+  const columns = new Set(columnsResult.rows.map(row => row.column_name));
+  const stockColumn = columns.has('current') ? 'current' : 'current_stock';
+
+  const patternSql = namePatterns.map((_, idx) => `LOWER(name) LIKE $${idx + 2}`).join(' OR ');
+  const itemResult = await client.query(
+    `SELECT id FROM inventory
+     WHERE branch_id = $1 AND (${patternSql})
+     ORDER BY id ASC
+     LIMIT 1`,
+    [branchId, ...namePatterns.map(pattern => `%${pattern.toLowerCase()}%`)]
+  );
+
+  if (itemResult.rows.length === 0) return;
+
+  const inventoryId = itemResult.rows[0].id;
+  await client.query(
+    `UPDATE inventory SET ${stockColumn} = GREATEST(${stockColumn} - $1, 0) WHERE id = $2`,
+    [amount, inventoryId]
+  );
+  await client.query(
+    'INSERT INTO inventory_logs (inventory_id, user_id, change_amount, reason) VALUES ($1, $2, $3, $4)',
+    [inventoryId, null, -amount, reason]
+  );
+};
+
 exports.getAll = async (req, res) => {
   try {
     let { branch_id, start_date, end_date, has_voucher, voucher_type, voucher_code } = req.query;
@@ -43,7 +76,14 @@ exports.getAll = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const transaction = await db.pool.query('SELECT * FROM transactions WHERE id = $1', [req.params.id]);
+    let query = 'SELECT * FROM transactions WHERE id = $1';
+    const params = [req.params.id];
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      params.push(req.user.branch_id);
+      query += ` AND branch_id = $${params.length}`;
+    }
+
+    const transaction = await db.pool.query(query, params);
     if (transaction.rows.length === 0) return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
     const items = await db.pool.query('SELECT * FROM transaction_items WHERE transaction_id = $1', [req.params.id]);
     res.json({ data: { ...transaction.rows[0], items: items.rows } });
@@ -69,15 +109,15 @@ exports.create = async (req, res) => {
     const delivery_status = transaction_type === 'delivery' ? 'pending' : null;
     const result = await client.query(
       `INSERT INTO transactions (
-        invoice_number, customer_id, customer_name, transaction_type, 
+        invoice_number, customer_id, customer_name, transaction_type, user_id,
         courier_id, subtotal, discount, total_amount, payment_method, 
         payment_status, notes, branch_id, commission_amount, 
         total_gallons, delivery_status, priority, lat, lng,
         voucher_code, voucher_discount, voucher_type
       ) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
       [
-        invoice_number, customer_id || null, customer_name, transaction_type, 
+        invoice_number, customer_id || null, customer_name, transaction_type, req.user?.id || null,
         courier_id || null, subtotal, discount, total_amount, payment_method, 
         payment_status, notes, branch_id, commission_amount, 
         total_gallons || 0, delivery_status, priority || 'normal', lat || null, lng || null,
@@ -101,21 +141,10 @@ exports.create = async (req, res) => {
     // AUTOMATION 1: INVENTORY DEDUCTION
     // ==========================================
     if (total_gallons > 0) {
-      // Deduct Tutup Galon (id 3)
-      await client.query(
-        `UPDATE inventory SET current = current - $1 WHERE id = 3 AND branch_id = $2`,
-        [total_gallons, branch_id || 1]
-      );
-      // Deduct Tisu Galon (id 4)
-      await client.query(
-        `UPDATE inventory SET current = current - $1 WHERE id = 4 AND branch_id = $2`,
-        [total_gallons, branch_id || 1]
-      );
-      // Deduct Tandon Air (id 1) by total_gallons * 19 Liters
-      await client.query(
-        `UPDATE inventory SET current = current - $1 WHERE id = 1 AND branch_id = $2`,
-        [total_gallons * 19, branch_id || 1]
-      );
+      const finalBranchId = branch_id || req.user?.branch_id || 1;
+      await deductInventoryItem(client, finalBranchId, ['tutup'], total_gallons, `Auto deduction ${invoice_number}`);
+      await deductInventoryItem(client, finalBranchId, ['tisu', 'tissue'], total_gallons, `Auto deduction ${invoice_number}`);
+      await deductInventoryItem(client, finalBranchId, ['tandon', 'air baku', 'air'], total_gallons * 19, `Auto deduction ${invoice_number}`);
     }
 
     // ==========================================
@@ -172,8 +201,16 @@ exports.create = async (req, res) => {
 };
 
 exports.getDeliveries = async (req, res) => {
-  const courierId = req.params.courierId;
+  const courierId = parseInt(req.params.courierId, 10);
   try {
+    if (!courierId) {
+      return res.status(400).json({ message: 'Courier ID tidak valid' });
+    }
+
+    if (req.user?.courier_id && req.user.courier_id !== courierId) {
+      return res.status(403).json({ message: 'Kurir hanya dapat melihat tugas miliknya sendiri' });
+    }
+
     const result = await db.pool.query(
       `SELECT t.*, c.name as customer_name, c.whatsapp as customer_phone, c.block_name, c.house_number, c.address as address
        FROM transactions t
@@ -190,6 +227,13 @@ exports.getDeliveries = async (req, res) => {
 
 exports.getAllDeliveries = async (req, res) => {
   try {
+    const params = [];
+    let branchFilter = '';
+    if (req.user.role === 'branch_admin') {
+      params.push(req.user.branch_id);
+      branchFilter = ` AND t.branch_id = $${params.length}`;
+    }
+
     const result = await db.pool.query(
       `SELECT t.*, c.name as customer_name, c.whatsapp as customer_phone, c.block_name, c.house_number, c.address as address,
               co.name as taken_by_name
@@ -197,7 +241,9 @@ exports.getAllDeliveries = async (req, res) => {
        LEFT JOIN customers c ON t.customer_id = c.id
        LEFT JOIN couriers co ON t.courier_id = co.id
        WHERE t.transaction_type = 'delivery' AND (t.delivery_status != 'delivered' OR t.delivery_status IS NULL)
-       ORDER BY t.created_at DESC`
+       ${branchFilter}
+       ORDER BY t.created_at DESC`,
+      params
     );
     res.json({ data: result.rows });
   } catch (err) {
@@ -206,29 +252,32 @@ exports.getAllDeliveries = async (req, res) => {
 };
 
 exports.claimTask = async (req, res) => {
-  const { id } = req.params;
-  const { courier_id } = req.body;
-  try {
-    // Check if already claimed
-    const check = await db.pool.query('SELECT courier_id FROM transactions WHERE id = $1', [id]);
-    if (check.rows.length > 0 && check.rows[0].courier_id) {
-      return res.status(400).json({ message: 'Tugas sudah diambil oleh kurir lain' });
-    }
-
-    await db.pool.query(
-      'UPDATE transactions SET courier_id = $1, delivery_status = $2 WHERE id = $3',
-      [courier_id, 'on_way', id]
-    );
-    res.json({ message: 'Tugas berhasil diambil' });
-  } catch (err) {
-    res.status(500).json({ message: 'Error', error: err.message });
-  }
+  res.status(403).json({ 
+    message: 'Kurir tidak dapat mengambil tugas sendiri. Tugas pengantaran harus dipilih oleh kasir.' 
+  });
 };
 
 exports.updateDeliveryStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   try {
+    const allowedStatuses = ['pending', 'on_way', 'delivered', 'cancelled'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Status pengiriman tidak valid' });
+    }
+
+    const transaction = await db.pool.query(
+      'SELECT courier_id, transaction_type FROM transactions WHERE id = $1',
+      [id]
+    );
+    if (transaction.rows.length === 0) {
+      return res.status(404).json({ message: 'Transaksi tidak ditemukan' });
+    }
+
+    if (req.user?.courier_id && transaction.rows[0].courier_id !== req.user.courier_id) {
+      return res.status(403).json({ message: 'Kurir hanya dapat mengubah status tugas miliknya' });
+    }
+
     await db.pool.query('UPDATE transactions SET delivery_status = $1 WHERE id = $2', [status, id]);
     res.json({ message: 'Status pengiriman berhasil diperbarui' });
   } catch (err) {

@@ -18,21 +18,47 @@ const FaceAttendance = ({ onSuccess, onCancel, courierId = null, type = 'check_i
 
   // Start camera
   const startCamera = async () => {
+    setError('');
+    setMessage('');
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('Browser tidak mendukung akses camera. Gunakan Chrome/Brave terbaru.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: 640, height: 480 } 
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false
       });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        streamRef.current = stream;
-        setCameraActive(true);
-      }
+
+      streamRef.current = stream;
+      setCameraActive(true);
     } catch (err) {
-      setError('Tidak dapat mengakses camera. Pastikan permission camera diizinkan.');
+      let msg = 'Tidak dapat mengakses camera. Pastikan permission camera diizinkan.';
+      if (err.name === 'NotAllowedError') {
+        msg = 'Izin camera ditolak. Klik icon camera di address bar lalu pilih Allow.';
+      } else if (err.name === 'NotFoundError') {
+        msg = 'Camera tidak ditemukan di perangkat ini.';
+      } else if (err.name === 'NotReadableError') {
+        msg = 'Camera sedang dipakai aplikasi lain. Tutup aplikasi kamera/meeting lalu coba lagi.';
+      }
+      setError(msg);
       console.error('Camera error:', err);
     }
   };
+
+  useEffect(() => {
+    if (cameraActive && streamRef.current) {
+      if (videoRef.current) {
+        videoRef.current.srcObject = streamRef.current;
+        videoRef.current.play().catch((err) => {
+          console.error('Video play error:', err);
+          setError('Camera aktif, tetapi preview gagal diputar. Coba tutup dan buka ulang modal.');
+        });
+      }
+    }
+  }, [cameraActive]);
 
   // Stop camera
   const stopCamera = () => {

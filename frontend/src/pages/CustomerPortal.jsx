@@ -29,7 +29,7 @@ const MotorIcon = ({ size = 24, className = "" }) => (
   </svg>
 );
 
-const publicApi = axios.create({ baseURL: '/api', timeout: 15000 });
+const publicApi = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', timeout: 15000 });
 const fmt = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n || 0);
 
 const THEME = { 
@@ -147,14 +147,7 @@ export default function CustomerPortal() {
   /* ─── LANDING ─── */
   if (step === 'landing') return (
     <div className="min-h-screen bg-[#FBFBFD] flex flex-col font-outfit relative overflow-x-hidden no-scrollbar">
-      {/* iPhone Dynamic Island Mockup */}
-      <div className="fixed top-0 left-0 right-0 h-14 flex justify-center items-center z-[200] pointer-events-none">
-         <div className="w-32 h-8 bg-black rounded-full mt-3 flex items-center justify-end px-4 gap-1">
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-500/30" />
-         </div>
-      </div>
-
-      <div className="flex-1 flex flex-col items-center p-8 pt-28">
+      <div className="flex-1 flex flex-col items-center p-8 pt-16">
         {/* Animated Logo Container */}
         <motion.div 
           initial={{ scale: 0.8, opacity: 0 }}

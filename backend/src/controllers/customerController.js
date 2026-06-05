@@ -66,7 +66,14 @@ exports.getById = async (req, res) => {
     return res.json({ data: cust });
   }
   try {
-    const result = await db.pool.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
+    let query = 'SELECT * FROM customers WHERE id = $1';
+    const params = [req.params.id];
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      params.push(req.user.branch_id);
+      query += ` AND branch_id = $${params.length}`;
+    }
+
+    const result = await db.pool.query(query, params);
     if (result.rows.length === 0) return res.status(404).json({ message: 'Pelanggan tidak ditemukan' });
     res.json({ data: result.rows[0] });
   } catch (err) {
@@ -124,10 +131,15 @@ exports.update = async (req, res) => {
   if (process.env.DEMO_MODE === 'true') return res.json({ message: 'Updated (Demo)' });
   try {
     const { name, whatsapp, address } = req.body;
-    await db.pool.query(
-      'UPDATE customers SET name=$1, whatsapp=$2, address=$3 WHERE id=$4',
-      [name, whatsapp, address, req.params.id]
-    );
+    let query = 'UPDATE customers SET name=$1, whatsapp=$2, address=$3 WHERE id=$4';
+    const params = [name, whatsapp, address, req.params.id];
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      params.push(req.user.branch_id);
+      query += ` AND branch_id = $${params.length}`;
+    }
+
+    const result = await db.pool.query(query, params);
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Pelanggan tidak ditemukan atau bukan milik cabang Anda' });
     res.json({ message: 'Data pelanggan diperbarui' });
   } catch (err) {
     res.status(500).json({ message: 'Error', error: err.message });
@@ -137,7 +149,15 @@ exports.update = async (req, res) => {
 exports.remove = async (req, res) => {
   if (process.env.DEMO_MODE === 'true') return res.json({ message: 'Deleted (Demo)' });
   try {
-    await db.pool.query('DELETE FROM customers WHERE id = $1', [req.params.id]);
+    let query = 'DELETE FROM customers WHERE id = $1';
+    const params = [req.params.id];
+    if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
+      params.push(req.user.branch_id);
+      query += ` AND branch_id = $${params.length}`;
+    }
+
+    const result = await db.pool.query(query, params);
+    if (result.rowCount === 0) return res.status(404).json({ message: 'Pelanggan tidak ditemukan atau bukan milik cabang Anda' });
     res.json({ message: 'Pelanggan dihapus' });
   } catch (err) {
     res.status(500).json({ message: 'Error', error: err.message });

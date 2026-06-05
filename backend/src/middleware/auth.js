@@ -24,7 +24,10 @@ const authenticate = async (req, res, next) => {
     console.log('[DEBUG AUTH] Querying database for user validation...');
     // Standard Auth
     const result = await db.pool.query(
-      'SELECT id, name, username, role, branch_id, is_active FROM users WHERE id = $1',
+      `SELECT u.id, u.name, u.username, u.role, u.branch_id, u.is_active,
+        (SELECT id FROM couriers WHERE user_id = u.id AND is_active = true LIMIT 1) as courier_id
+       FROM users u
+       WHERE u.id = $1`,
       [decoded.id]
     );
     console.log('[DEBUG AUTH] DB query completed');

@@ -180,17 +180,24 @@ export default function Attendance() {
                     </tr>
                   </thead>
                   <tbody>
-                    {attendance.map((att) => (
+                    {attendance.map((att) => {
+                      const courierName = att.courier_name || att.name || `Kurir #${att.courier_id || '-'}`;
+                      const checkInValue = att.check_in_display || att.check_in_time || att.check_in || att.created_at;
+                      const checkInLabel = checkInValue
+                        ? new Date(checkInValue).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+                        : '--:--';
+
+                      return (
                       <tr key={att.id}>
                         <td>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-brand-100 dark:bg-brand-900/40 flex items-center justify-center text-brand-600 font-bold text-xs">
-                              {att.courier_name[0].toUpperCase()}
+                              {courierName[0].toUpperCase()}
                             </div>
-                            <span className="font-medium">{att.courier_name}</span>
+                            <span className="font-medium">{courierName}</span>
                           </div>
                         </td>
-                        <td>{att.check_in ? att.check_in.slice(0, 5) : '--:--'}</td>
+                        <td>{checkInLabel}</td>
                         <td>{att.notes || '-'}</td>
                         <td className="text-right">
                           <button 
@@ -201,7 +208,7 @@ export default function Attendance() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>

@@ -113,7 +113,7 @@ export const transactionApi = {
 export const attendanceApi = {
   getAll:       (params) => api.get('/attendance', { params }),
   getTodayPresent:(params) => api.get('/attendance/today', { params }),
-  checkIn:      (data)   => api.post('/attendance', data),
+  checkIn:      (data)   => api.post('/attendance/checkin', data),
   faceAttendance: (data) => api.post('/attendance/face', data),
   remove:       (id)     => api.delete(`/attendance/${id}`),
 };

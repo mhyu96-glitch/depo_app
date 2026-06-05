@@ -5,26 +5,39 @@ require('dotenv').config();
 
 const app = express();
 
-// SUPER PERMISSIVE CORS - Allow ALL origins for production debugging
-app.use(cors({
-  origin: '*', // Allow all origins
-  credentials: true,
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://127.0.0.1:5000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175'
+].join(','))
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`Origin not allowed by CORS: ${origin}`));
+  },
+  credentials: false,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'Origin'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400,
-  preflightContinue: false,
   optionsSuccessStatus: 204
+};
+
+app.use(cors({
+  ...corsOptions,
+  preflightContinue: false
 }));
 
-// Additional permissive headers
+// Handle preflight immediately
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  
-  // Handle preflight immediately
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
