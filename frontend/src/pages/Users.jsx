@@ -23,6 +23,16 @@ export default function Users() {
     is_active: 1
   });
 
+  const roleLabels = {
+    kasir: 'Kasir',
+    admin: 'Administrator',
+    branch_admin: 'Admin Cabang',
+    superadmin: 'Super Admin',
+    kurir: 'Kurir'
+  };
+
+  const isPrivilegedRole = (role) => role === 'admin' || role === 'branch_admin' || role === 'superadmin';
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -213,13 +223,13 @@ export default function Users() {
                 <tr key={u.id}>
                   <td>
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${u.role === 'admin' ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-700'}`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${isPrivilegedRole(u.role) ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-700'}`}>
                         {(u.name?.[0] || '?').toUpperCase()}
                       </div>
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">{u.name}</p>
-                        <p className={`text-[10px] font-bold uppercase tracking-wider ${u.role === 'admin' ? 'text-primary-500' : 'text-gray-400'}`}>
-                          {u.role}
+                        <p className={`text-[10px] font-bold uppercase tracking-wider ${isPrivilegedRole(u.role) ? 'text-primary-500' : 'text-gray-400'}`}>
+                          {roleLabels[u.role] || u.role}
                         </p>
                       </div>
                     </div>
@@ -348,10 +358,15 @@ export default function Users() {
                     icon={Shield}
                     options={[
                       { value: 'kasir', label: 'Kasir' },
+                      { value: 'branch_admin', label: 'Admin Cabang' },
                       { value: 'admin', label: 'Administrator' }
                     ]}
                     value={form.role}
-                    onChange={val => setForm({...form, role: val})}
+                    onChange={val => setForm({
+                      ...form,
+                      role: val,
+                      branch_id: val === 'admin' ? '' : form.branch_id
+                    })}
                     placeholder="-- Pilih Role --"
                   />
                 </div>
