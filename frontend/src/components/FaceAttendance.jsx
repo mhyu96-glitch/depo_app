@@ -15,6 +15,8 @@ const FaceAttendance = ({ onSuccess, onCancel, courierId = null, type = 'check_i
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const MAX_CAPTURE_SIZE = 320;
+  const JPEG_QUALITY = 0.55;
 
   // Start camera
   const startCamera = async () => {
@@ -98,13 +100,16 @@ const FaceAttendance = ({ onSuccess, onCancel, courierId = null, type = 'check_i
     const canvas = canvasRef.current;
     const video = videoRef.current;
     
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const sourceWidth = video.videoWidth || 640;
+    const sourceHeight = video.videoHeight || 480;
+    const scale = Math.min(1, MAX_CAPTURE_SIZE / Math.max(sourceWidth, sourceHeight));
+    canvas.width = Math.round(sourceWidth * scale);
+    canvas.height = Math.round(sourceHeight * scale);
     
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
-    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    const imageData = canvas.toDataURL('image/jpeg', JPEG_QUALITY);
     setCapturedImage(imageData);
     stopCamera();
 

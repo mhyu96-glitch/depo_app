@@ -174,6 +174,7 @@ export default function Attendance() {
                   <thead>
                     <tr>
                       <th>Nama Kurir</th>
+                      <th>Foto</th>
                       <th>Jam Masuk</th>
                       <th>Keterangan</th>
                       <th className="text-right">Aksi</th>
@@ -196,6 +197,18 @@ export default function Attendance() {
                             </div>
                             <span className="font-medium">{courierName}</span>
                           </div>
+                        </td>
+                        <td>
+                          {att.face_data ? (
+                            <img
+                              src={att.face_data}
+                              alt={`Foto absensi ${courierName}`}
+                              className="w-10 h-10 rounded-lg object-cover border border-gray-200 dark:border-gray-700"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="text-xs text-gray-400">-</span>
+                          )}
                         </td>
                         <td>{checkInLabel}</td>
                         <td>{att.notes || '-'}</td>
