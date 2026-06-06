@@ -226,12 +226,18 @@ export default function Login() {
               <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest mb-3 block">Username</label>
               <div className="relative">
                 <input
+                  id="username"
+                  name="username"
                   type="text"
                   className="w-full h-14 bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all pl-14 pr-6 rounded-full text-sm font-bold"
                   placeholder="ID Pengguna"
                   value={form.username}
                   onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                  onFocus={() => setShowBranch(false)}
                   autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   autoFocus
                   required
                 />
@@ -245,12 +251,18 @@ export default function Login() {
               <label className="text-[10px] font-black text-primary-300 uppercase tracking-widest mb-3 block">Password Keamanan</label>
               <div className="relative">
                 <input
+                  id="password"
+                  name="password"
                   type={showPw ? 'text' : 'password'}
                   className="w-full h-14 bg-white/5 border border-white/10 text-white placeholder:text-white/20 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all pl-14 pr-14 rounded-full text-sm font-bold tracking-widest"
                   placeholder="••••••••"
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  onFocus={() => setShowBranch(false)}
                   autoComplete="current-password"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   required
                 />
                 <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary-400">
