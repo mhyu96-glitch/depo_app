@@ -200,7 +200,7 @@ export default function SalaryReport() {
             <div>
               <h4 className="font-bold text-brand-900 dark:text-brand-100">Kebijakan Komisi</h4>
               <p className="text-sm text-brand-700 dark:text-brand-300 mt-1 leading-relaxed">
-                Komisi otomatis: Rp500 per galon untuk pengiriman 1-60 galon, dan Rp1.000 per galon untuk pengiriman di atas 60 galon dalam satu transaksi.
+                Komisi otomatis mengikuti pengaturan sistem pengantaran di menu Settings. Perubahan rate baru berlaku untuk transaksi delivery yang dibuat setelah pengaturan disimpan.
               </p>
             </div>
           </div>

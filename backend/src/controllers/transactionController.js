@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const auditController = require('./auditController');
+const { calculateCommissionFromSettings } = require('../utils/commission');
 
 const deductInventoryItem = async (client, branchId, namePatterns, amount, reason) => {
   if (!amount || amount <= 0) return;
@@ -96,7 +97,7 @@ exports.create = async (req, res) => {
   const { 
     customer_id, customer_name, transaction_type, courier_id, 
     subtotal, discount, total_amount, payment_method, payment_status, 
-    notes, branch_id, commission_amount, items, total_gallons,
+    notes, branch_id, items, total_gallons,
     priority, lat, lng, voucher_code, voucher_discount, voucher_type
   } = req.body;
   const invoice_number = 'INV-' + Date.now();
@@ -107,6 +108,10 @@ exports.create = async (req, res) => {
     await client.query('BEGIN');
     
     const delivery_status = transaction_type === 'delivery' ? 'pending' : null;
+    const commission = transaction_type === 'delivery'
+      ? await calculateCommissionFromSettings(client, total_gallons || 0)
+      : { amount: 0, rate: 0 };
+
     const result = await client.query(
       `INSERT INTO transactions (
         invoice_number, customer_id, customer_name, transaction_type, user_id,
@@ -119,7 +124,7 @@ exports.create = async (req, res) => {
       [
         invoice_number, customer_id || null, customer_name, transaction_type, req.user?.id || null,
         courier_id || null, subtotal, discount, total_amount, payment_method, 
-        payment_status, notes, branch_id, commission_amount, 
+        payment_status, notes, branch_id, commission.amount, 
         total_gallons || 0, delivery_status, priority || 'normal', lat || null, lng || null,
         voucher_code || null, voucher_discount || 0, voucher_type || null
       ]

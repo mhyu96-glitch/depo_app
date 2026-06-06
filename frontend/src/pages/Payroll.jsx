@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { courierApi } from '../api';
+import { courierApi, settingsApi } from '../api';
 import { 
   Wallet, DollarSign, Download, Send, 
   TrendingUp, Award, Clock, History,
@@ -11,18 +11,31 @@ const fmt = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency:
 
 export default function Payroll() {
   const [couriers, setCouriers] = useState([]);
+  const [commissionSettings, setCommissionSettings] = useState({
+    base_rate: 500,
+    threshold_gallons: 60,
+    threshold_rate: 1000
+  });
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    courierApi.getAll().then(res => {
-      setCouriers(res.data.data);
+    Promise.all([
+      courierApi.getAll(),
+      settingsApi.getCommission()
+    ]).then(([courierRes, settingsRes]) => {
+      setCouriers(courierRes.data.data);
+      setCommissionSettings(settingsRes.data.data);
     }).finally(() => setLoading(false));
   }, []);
 
   const calculatePayroll = (c) => {
     const baseSalary = 2500000;
-    const commission = (c.gallons_delivered || 0) * 500;
+    const gallons = c.gallons_delivered || 0;
+    const rate = gallons > commissionSettings.threshold_gallons
+      ? commissionSettings.threshold_rate
+      : commissionSettings.base_rate;
+    const commission = gallons * rate;
     const bonus = (c.performance_score || 80) > 90 ? 250000 : 0;
     return { baseSalary, commission, bonus, total: baseSalary + commission + bonus };
   };

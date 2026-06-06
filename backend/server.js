@@ -79,6 +79,7 @@ app.use('/api/iot',          require('./src/routes/iot.routes'));
 app.use('/api/procurement',  require('./src/routes/supplier.routes'));
 app.use('/api/shifts',       require('./src/routes/shift.routes'));
 app.use('/api/debts',        require('./src/routes/debt.routes'));
+app.use('/api/settings',     require('./src/routes/settings.routes'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date(), version: '1.0.1' }));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date(), version: '1.0.1' }));

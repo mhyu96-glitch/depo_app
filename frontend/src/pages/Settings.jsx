@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { authApi } from '../api';
+import { useEffect, useState } from 'react';
+import { authApi, settingsApi } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { 
   Settings as SettingsIcon, Package, Key, 
   Loader2, CheckCircle, AlertCircle,
-  Palette, Smartphone, Store, Plus, RefreshCcw
+  Palette, Smartphone, Store, Plus, RefreshCcw, Truck, Save
 } from 'lucide-react';
 
 export default function Settings() {
@@ -17,6 +17,12 @@ export default function Settings() {
   // Branding state
   const [tempBrandName, setTempBrandName] = useState(brandName);
   const [tempBrandColor, setTempBrandColor] = useState(brandColor);
+  const [commissionForm, setCommissionForm] = useState({
+    base_rate: 500,
+    threshold_gallons: 60,
+    threshold_rate: 1000
+  });
+  const [commissionLoading, setCommissionLoading] = useState(true);
 
   // Password change state
   const [pwForm, setPwForm] = useState({
@@ -48,6 +54,45 @@ export default function Settings() {
     setBrandColor(tempBrandColor);
     setSuccess('Branding & Tema berhasil diperbarui');
     setTimeout(() => setSuccess(''), 3000);
+  };
+
+  useEffect(() => {
+    const loadCommission = async () => {
+      try {
+        const res = await settingsApi.getCommission();
+        setCommissionForm({
+          base_rate: res.data.data.base_rate,
+          threshold_gallons: res.data.data.threshold_gallons,
+          threshold_rate: res.data.data.threshold_rate
+        });
+      } catch (err) {
+        console.error('Gagal mengambil setting komisi:', err);
+      } finally {
+        setCommissionLoading(false);
+      }
+    };
+
+    loadCommission();
+  }, []);
+
+  const handleSaveCommission = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const payload = {
+        base_rate: Number(commissionForm.base_rate),
+        threshold_gallons: Number(commissionForm.threshold_gallons),
+        threshold_rate: Number(commissionForm.threshold_rate)
+      };
+      const res = await settingsApi.updateCommission(payload);
+      setCommissionForm(res.data.data);
+      setSuccess('Pengaturan komisi kurir berhasil diperbarui');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal menyimpan pengaturan komisi');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -118,6 +163,72 @@ export default function Settings() {
                     SIMPAN BRANDING
                  </button>
               </div>
+           </div>
+
+           <div className="card p-8 border-none shadow-xl space-y-8">
+              <h2 className="text-sm font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                 <Truck className="text-emerald-500" size={18} />
+                 Komisi Sistem Pengantaran
+              </h2>
+
+              {commissionLoading ? (
+                <div className="py-8 flex justify-center">
+                  <Loader2 size={28} className="animate-spin text-primary-500" />
+                </div>
+              ) : (
+                <form onSubmit={handleSaveCommission} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rate Normal / Galon</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="input h-14 text-sm font-black"
+                        value={commissionForm.base_rate}
+                        onChange={e => setCommissionForm({ ...commissionForm, base_rate: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Batas Galon</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="input h-14 text-sm font-black"
+                        value={commissionForm.threshold_gallons}
+                        onChange={e => setCommissionForm({ ...commissionForm, threshold_gallons: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rate Di Atas Batas</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="input h-14 text-sm font-black"
+                        value={commissionForm.threshold_rate}
+                        onChange={e => setCommissionForm({ ...commissionForm, threshold_rate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-5 rounded-[2rem] bg-emerald-50 border border-emerald-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-black text-emerald-900">Aturan aktif</p>
+                      <p className="text-xs font-bold text-emerald-700 mt-1">
+                        1-{commissionForm.threshold_gallons} galon: Rp{Number(commissionForm.base_rate || 0).toLocaleString('id-ID')}/galon.
+                        Di atas {commissionForm.threshold_gallons} galon: Rp{Number(commissionForm.threshold_rate || 0).toLocaleString('id-ID')}/galon.
+                      </p>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="px-6 py-3 rounded-2xl bg-emerald-600 text-white font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-600/20 hover:scale-105 transition-all flex items-center justify-center gap-2"
+                    >
+                      {submitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                      Simpan Komisi
+                    </button>
+                  </div>
+                </form>
+              )}
            </div>
 
            {/* Notice about Product Management */}

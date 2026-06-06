@@ -208,7 +208,7 @@ export default function Couriers() {
 
               <div className="pt-2">
                 <p className="text-xs text-gray-400 text-center">
-                  Komisi: Rp500/galon (1-60) · Rp1.000/galon (&gt;60)
+                  Komisi mengikuti pengaturan sistem pengantaran
                 </p>
               </div>
             </div>

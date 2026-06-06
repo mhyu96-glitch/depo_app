@@ -140,6 +140,21 @@ CREATE TABLE IF NOT EXISTS courier_faces (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- SYSTEM SETTINGS
+CREATE TABLE IF NOT EXISTS app_settings (
+  key VARCHAR(100) PRIMARY KEY,
+  value TEXT NOT NULL,
+  description TEXT,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO app_settings (key, value, description, updated_at)
+VALUES
+  ('courier_commission_base_rate', '500', 'Komisi kurir per galon untuk jumlah normal', CURRENT_TIMESTAMP),
+  ('courier_commission_threshold_gallons', '60', 'Batas galon untuk memakai komisi tier tinggi', CURRENT_TIMESTAMP),
+  ('courier_commission_threshold_rate', '1000', 'Komisi kurir per galon setelah melewati batas tier', CURRENT_TIMESTAMP)
+ON CONFLICT (key) DO NOTHING;
+
 -- INDEXES
 CREATE INDEX IF NOT EXISTS idx_couriers_user_id ON couriers(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_branch_created ON transactions(branch_id, created_at DESC);

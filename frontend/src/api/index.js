@@ -84,6 +84,12 @@ export const authApi = {
   changePassword: (data) => api.put('/auth/change-password', data),
 };
 
+// Settings
+export const settingsApi = {
+  getCommission: () => api.get('/settings/commission'),
+  updateCommission: (data) => api.put('/settings/commission', data),
+};
+
 // Branches
 export const branchApi = {
   getAll:  (params) => api.get('/branches', { params }),
