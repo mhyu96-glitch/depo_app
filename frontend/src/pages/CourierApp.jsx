@@ -58,19 +58,10 @@ const THEMES = {
   }
 };
 
-const MOCK_DELIVERIES = [
-  { id: 101, invoice_number: 'INV-2026-001', customer_name: 'Budi Santoso', customer_phone: '08123456789', address: 'Jl. Melati No. 12, Samarinda', total_amount: 25000, total_gallons: 5, delivery_status: 'on_way', payment_status: 'cod', priority: 'express', commission_amount: 2500, lat: -0.5021, lng: 117.1536, courier_id: 1 },
-  { id: 102, invoice_number: 'INV-2026-002', customer_name: 'Siti Aminah', customer_phone: '08198765432', address: 'Jl. Mawar No. 3, Samarinda', total_amount: 15000, total_gallons: 3, delivery_status: 'pending', payment_status: 'paid', priority: 'normal', commission_amount: 1500, lat: -0.5050, lng: 117.1580, courier_id: null },
-  { id: 103, invoice_number: 'INV-2026-003', customer_name: 'Agus Prayitno', customer_phone: '08156789012', address: 'Jl. Cempaka No. 7, Samarinda', total_amount: 30000, total_gallons: 6, delivery_status: 'pending', payment_status: 'cod', priority: 'normal', commission_amount: 3000, lat: -0.5080, lng: 117.1510, courier_id: null },
-  { id: 104, invoice_number: 'INV-2026-004', customer_name: 'Dewi Sartika', customer_phone: '08122233344', address: 'Jl. Anggrek No. 15, Samarinda', total_amount: 50000, total_gallons: 10, delivery_status: 'pending', payment_status: 'paid', priority: 'express', commission_amount: 5000, lat: -0.5100, lng: 117.1600, courier_id: null },
-  { id: 106, invoice_number: 'INV-2026-006', customer_name: 'Linda Kusuma', customer_phone: '08155566677', address: 'Jl. Tulip No. 21, Samarinda', total_amount: 35000, total_gallons: 7, delivery_status: 'pending', payment_status: 'paid', priority: 'normal', commission_amount: 3500, lat: -0.4980, lng: 117.1550, courier_id: 2 },
-];
-
 export default function CourierApp() {
   const { user, login, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('tugas');
   const [deliveries, setDeliveries] = useState([]);
-  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [completing, setCompleting] = useState(null);
   const [username, setUsername] = useState('');
@@ -94,15 +85,16 @@ export default function CourierApp() {
   const handleLogin = async (e) => {
     e?.preventDefault();
     if (!username || !password) { setError('Masukkan username dan password'); return; }
-    if (username === 'admin') {
-      const mockUser = { id: 99, name: 'Rian Hidayat', role: 'courier', courier_id: 1 };
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      localStorage.setItem('token', 'demo-token');
-      window.location.reload(); 
-      return;
-    }
     setLoading(true); setError('');
-    try { await login(username, password); } catch (err) { setError('Login gagal.'); }
+    try {
+      const loggedInUser = await login(username, password);
+      if (!loggedInUser?.courier_id) {
+        logout();
+        setError('Akun ini belum terhubung ke data kurir. Hubungi admin.');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login gagal.');
+    }
     setLoading(false);
   };
 
@@ -116,43 +108,27 @@ export default function CourierApp() {
       const res = await api.get(`/transactions/courier/${cid}`);
       const assignedData = res.data.data || [];
       setDeliveries(assignedData);
-      updateStats(assignedData.filter(d => d.courier_id === cid));
-    } catch (_) {
-      const cid = user?.courier_id || 1;
-      const myMockData = (MOCK_DELIVERIES || []).filter(d => d.courier_id === cid);
-      setDeliveries(myMockData);
-      updateStats(myMockData.filter(d => d.courier_id === cid));
+      setError('');
+    } catch (err) {
+      setDeliveries([]);
+      setError(err.response?.data?.message || err.message || 'Gagal memuat tugas kurir');
     }
     setLoading(false);
   };
 
-  const updateStats = (myData) => {
-    const data = myData || [];
-    setStats({
-      total_deliveries: data.length,
-      delivered: data.filter(x => x.delivery_status === 'delivered').length,
-      pending: data.filter(x => x.delivery_status !== 'delivered').length,
-      today_commission: data.filter(x => x.delivery_status === 'delivered').reduce((acc, curr) => acc + (curr.commission_amount || 0), 0) || 45000
-    });
-  }
-
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (user) loadData();
+  }, [user?.courier_id]);
 
   const markDelivered = async (id) => {
     setCompleting(id);
     await new Promise(r => setTimeout(r, 800));
-    const token = localStorage.getItem('token');
-    if (token === 'demo-token') {
-        setDeliveries(d => d.map(x => x.id === id ? { ...x, delivery_status: 'delivered' } : x));
-        triggerSuccess();
-    } else {
-        try {
-            await api.patch(`/transactions/${id}/delivery-status`, { status: 'delivered' });
-            triggerSuccess(); loadData();
-        } catch (_) {
-            triggerSuccess();
-            setDeliveries(d => d.map(x => x.id === id ? { ...x, delivery_status: 'delivered' } : x));
-        }
+    try {
+      await api.patch(`/transactions/${id}/delivery-status`, { status: 'delivered' });
+      triggerSuccess();
+      loadData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal menyelesaikan tugas');
     }
     setCompleting(null);
   };
@@ -207,6 +183,8 @@ export default function CourierApp() {
     );
   }
 
+  const deliveredForCourier = (deliveries || []).filter(d => d.delivery_status === 'delivered' && d.courier_id === user?.courier_id);
+
   return (
     <div style={{ backgroundColor: COLORS.bg }} className="h-screen font-outfit overflow-hidden flex flex-col transition-colors duration-500">
       <div className="flex-1 relative flex flex-col overflow-hidden">
@@ -218,13 +196,14 @@ export default function CourierApp() {
                         deliveries={deliveries || []} markDelivered={markDelivered} 
                         openMaps={openMaps} completing={completing} 
                         logout={logout} showConfirm={showConfirm}
-                        delivered={(deliveries || []).filter(d => d.delivery_status === 'delivered' && d.courier_id === user?.courier_id)}
+                        loadError={error}
+                        delivered={deliveredForCourier}
                         COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode}
                     />
                 )}
                 {activeTab === 'peta' && <PetaView deliveries={deliveries || []} user={user} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
-                {activeTab === 'rekap' && <RekapView delivered={(deliveries || []).filter(d => d.delivery_status === 'delivered' && d.courier_id === user?.courier_id)} user={user} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
-                {activeTab === 'bonus' && <BonusView deliveredCount={(deliveries || []).filter(d => d.delivery_status === 'delivered' && d.courier_id === user?.courier_id).length} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
+                {activeTab === 'rekap' && <RekapView delivered={deliveredForCourier} user={user} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
+                {activeTab === 'bonus' && <BonusView delivered={deliveredForCourier} COLORS={COLORS} toggleTheme={toggleTheme} themeMode={themeMode} />}
             </AnimatePresence>
         </div>
         
@@ -266,7 +245,7 @@ function TabButton({ icon: Icon, label, onClick, active = false }) {
   );
 }
 
-function TugasView({ user, loadData, deliveries = [], markDelivered, openMaps, completing, logout, showConfirm, delivered = [], COLORS, toggleTheme, themeMode }) {
+function TugasView({ user, loadData, deliveries = [], markDelivered, openMaps, completing, logout, showConfirm, loadError = '', delivered = [], COLORS, toggleTheme, themeMode }) {
     const safeDeliveries = deliveries || [];
     const myTasks = safeDeliveries.filter(d => d.courier_id === user?.courier_id && d.delivery_status !== 'delivered');
     const totalMyTasks = myTasks.length + delivered.length;
@@ -316,6 +295,12 @@ function TugasView({ user, loadData, deliveries = [], markDelivered, openMaps, c
             </div>
 
             <div className="px-5 space-y-12">
+                {loadError && (
+                    <div className="rounded-[2rem] border border-red-100 bg-red-50 p-5 text-center text-[10px] font-black uppercase tracking-widest text-red-600">
+                        {loadError}
+                    </div>
+                )}
+
                 {/* Active Assignments */}
                 <div className="space-y-6">
                     <div className="flex items-center justify-between px-3">
@@ -465,8 +450,10 @@ function RekapView({ delivered, user, COLORS, toggleTheme, themeMode }) {
     );
 }
 
-function BonusView({ deliveredCount, COLORS, toggleTheme, themeMode }) {
+function BonusView({ delivered = [], COLORS, toggleTheme, themeMode }) {
     const TARGET = 20;
+    const deliveredCount = delivered.length;
+    const balance = delivered.reduce((acc, curr) => acc + (curr.commission_amount || 0), 0);
     const pct = Math.min((deliveredCount / TARGET) * 100, 100);
     return (
         <div className="pb-32 transition-colors duration-500" style={{ backgroundColor: COLORS.bg }}>
@@ -508,7 +495,7 @@ function BonusView({ deliveredCount, COLORS, toggleTheme, themeMode }) {
                     <div style={{ backgroundColor: COLORS.card }} className="p-7 rounded-[2.5rem] border border-slate-100 text-left group shadow-sm">
                          <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-4 border border-emerald-100"><DollarSign size={20} /></div>
                          <p className="text-[10px] font-black uppercase text-slate-300 mb-1">Balance</p>
-                         <p style={{ color: COLORS.textPrimary }} className="text-lg font-black tracking-tight group-hover:text-emerald-600 transition-colors">{fmt(125000)}</p>
+                         <p style={{ color: COLORS.textPrimary }} className="text-lg font-black tracking-tight group-hover:text-emerald-600 transition-colors">{fmt(balance)}</p>
                     </div>
                 </div>
             </div>
