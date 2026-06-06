@@ -9,6 +9,75 @@ const getInventoryColumns = async (client = db.pool) => {
   return new Set(result.rows.map(row => row.column_name));
 };
 
+const syncProductsToInventory = async (client, columns, branchId = null) => {
+  try {
+    await client.query('SELECT id FROM products LIMIT 1');
+  } catch (_) {
+    return;
+  }
+
+  const stockColumn = columns.has('current') ? 'current' : (columns.has('current_stock') ? 'current_stock' : null);
+  const insertColumns = [];
+  const selectValues = [];
+
+  if (columns.has('branch_id')) {
+    insertColumns.push('branch_id');
+    selectValues.push('p.branch_id');
+  }
+
+  insertColumns.push('name');
+  selectValues.push('p.name');
+
+  if (columns.has('unit')) {
+    insertColumns.push('unit');
+    selectValues.push(`'pcs'`);
+  }
+
+  if (stockColumn) {
+    insertColumns.push(stockColumn);
+    selectValues.push('0');
+  }
+
+  if (columns.has('min_stock')) {
+    insertColumns.push('min_stock');
+    selectValues.push('10');
+  }
+
+  if (columns.has('type')) {
+    insertColumns.push('type');
+    selectValues.push(`'supply'`);
+  }
+
+  if (columns.has('capacity')) {
+    insertColumns.push('capacity');
+    selectValues.push('0');
+  }
+
+  const params = [];
+  let productFilter = "WHERE COALESCE(p.is_active, true) = true";
+  if (branchId && columns.has('branch_id')) {
+    params.push(branchId);
+    productFilter += ` AND (p.branch_id = $${params.length} OR p.branch_id IS NULL)`;
+  }
+
+  const branchMatch = columns.has('branch_id')
+    ? 'i.branch_id IS NOT DISTINCT FROM p.branch_id'
+    : '1=1';
+
+  await client.query(
+    `INSERT INTO inventory (${insertColumns.join(', ')})
+     SELECT ${selectValues.join(', ')}
+     FROM products p
+     ${productFilter}
+       AND NOT EXISTS (
+         SELECT 1
+         FROM inventory i
+         WHERE i.name = p.name AND ${branchMatch}
+       )`,
+    params
+  );
+};
+
 exports.getAll = async (req, res) => {
   try {
     let { branch_id } = req.query;
@@ -22,6 +91,8 @@ exports.getAll = async (req, res) => {
     if (req.user.role === 'branch_admin' || req.user.role === 'kasir') {
       branch_id = req.user.branch_id;
     }
+
+    await syncProductsToInventory(db.pool, columns, branch_id);
     
     let query = `
       SELECT *,
@@ -86,7 +157,13 @@ exports.getLogs = async (req, res) => {
 exports.updateStock = async (req, res) => {
   try {
     const { id, type, qty, note } = req.body;
-    const change_amount = type === 'in' ? qty : -qty;
+    const parsedQty = Number(qty);
+    if (!id) return res.status(400).json({ message: 'Pilih barang terlebih dahulu' });
+    if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+      return res.status(400).json({ message: 'Jumlah stok harus lebih dari 0' });
+    }
+
+    const change_amount = type === 'in' ? parsedQty : -parsedQty;
     const client = await db.getConnection();
     try {
       await client.query('BEGIN');
@@ -99,7 +176,7 @@ exports.updateStock = async (req, res) => {
           'SELECT branch_id FROM inventory WHERE id = $1',
           [id]
         );
-        if (checkResult.rows.length === 0 || checkResult.rows[0].branch_id !== req.user.branch_id) {
+        if (checkResult.rows.length === 0 || Number(checkResult.rows[0].branch_id) !== Number(req.user.branch_id)) {
           await client.query('ROLLBACK');
           return res.status(403).json({ message: 'Akses ditolak: item inventory bukan milik cabang Anda' });
         }

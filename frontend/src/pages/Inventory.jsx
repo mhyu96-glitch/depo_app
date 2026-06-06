@@ -97,12 +97,23 @@ export default function Inventory() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!form.id) {
+      alert('Pilih barang terlebih dahulu');
+      return;
+    }
+    if (!form.qty || parseInt(form.qty) <= 0) {
+      alert('Jumlah stok harus lebih dari 0');
+      return;
+    }
+
     try {
       await inventoryApi.updateStock({ ...form, qty: parseInt(form.qty) });
       setForm({ id: '', type: 'in', qty: '', note: '' });
       setShowModal(false);
       loadData();
-    } catch (_) {}
+    } catch (err) {
+      alert(err.response?.data?.message || 'Gagal menyimpan mutasi stok');
+    }
   };
 
   if (loading) return <div className="p-10 text-center font-black animate-pulse">SYNCHRONIZING INVENTORY...</div>;
@@ -254,6 +265,11 @@ export default function Inventory() {
                   onChange={val => setForm({...form, id: val})}
                   placeholder="-- Pilih Barang --"
                 />
+                {items.length === 0 && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold leading-relaxed text-amber-700">
+                    Belum ada item stok. Tambahkan produk aktif terlebih dahulu, lalu muat ulang halaman.
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-6">
                   <PillSelect 
                     label="Tipe Mutasi"
