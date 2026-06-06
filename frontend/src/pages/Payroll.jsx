@@ -32,9 +32,14 @@ export default function Payroll() {
   const calculatePayroll = (c) => {
     const baseSalary = 2500000;
     const gallons = c.gallons_delivered || 0;
-    const rate = gallons > commissionSettings.threshold_gallons
-      ? commissionSettings.threshold_rate
-      : commissionSettings.base_rate;
+    const tiers = Array.isArray(commissionSettings.tiers) && commissionSettings.tiers.length > 0
+      ? commissionSettings.tiers
+      : [
+          { min_gallons: 1, max_gallons: commissionSettings.threshold_gallons, rate: commissionSettings.base_rate },
+          { min_gallons: Number(commissionSettings.threshold_gallons || 0) + 1, max_gallons: null, rate: commissionSettings.threshold_rate }
+        ];
+    const tier = tiers.find(t => gallons >= Number(t.min_gallons || 1) && (t.max_gallons === null || t.max_gallons === '' || gallons <= Number(t.max_gallons))) || tiers[tiers.length - 1];
+    const rate = Number(tier?.rate || 0);
     const commission = gallons * rate;
     const bonus = (c.performance_score || 80) > 90 ? 250000 : 0;
     return { baseSalary, commission, bonus, total: baseSalary + commission + bonus };

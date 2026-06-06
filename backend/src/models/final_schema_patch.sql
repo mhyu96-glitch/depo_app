@@ -152,7 +152,8 @@ INSERT INTO app_settings (key, value, description, updated_at)
 VALUES
   ('courier_commission_base_rate', '500', 'Komisi kurir per galon untuk jumlah normal', CURRENT_TIMESTAMP),
   ('courier_commission_threshold_gallons', '60', 'Batas galon untuk memakai komisi tier tinggi', CURRENT_TIMESTAMP),
-  ('courier_commission_threshold_rate', '1000', 'Komisi kurir per galon setelah melewati batas tier', CURRENT_TIMESTAMP)
+  ('courier_commission_threshold_rate', '1000', 'Komisi kurir per galon setelah melewati batas tier', CURRENT_TIMESTAMP),
+  ('courier_commission_tiers', '[{"min_gallons":1,"max_gallons":60,"rate":500},{"min_gallons":61,"max_gallons":null,"rate":1000}]', 'Daftar tier/rate komisi kurir per galon', CURRENT_TIMESTAMP)
 ON CONFLICT (key) DO NOTHING;
 
 -- INDEXES

@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { 
   Settings as SettingsIcon, Package, Key, 
   Loader2, CheckCircle, AlertCircle,
-  Palette, Smartphone, Store, Plus, RefreshCcw, Truck, Save
+  Palette, Smartphone, Store, Plus, RefreshCcw, Truck, Save, Trash2
 } from 'lucide-react';
 
 export default function Settings() {
@@ -20,7 +20,11 @@ export default function Settings() {
   const [commissionForm, setCommissionForm] = useState({
     base_rate: 500,
     threshold_gallons: 60,
-    threshold_rate: 1000
+    threshold_rate: 1000,
+    tiers: [
+      { min_gallons: 1, max_gallons: 60, rate: 500 },
+      { min_gallons: 61, max_gallons: '', rate: 1000 }
+    ]
   });
   const [commissionLoading, setCommissionLoading] = useState(true);
 
@@ -60,10 +64,21 @@ export default function Settings() {
     const loadCommission = async () => {
       try {
         const res = await settingsApi.getCommission();
+        const tiers = Array.isArray(res.data.data.tiers) && res.data.data.tiers.length > 0
+          ? res.data.data.tiers.map(tier => ({
+              min_gallons: tier.min_gallons,
+              max_gallons: tier.max_gallons ?? '',
+              rate: tier.rate
+            }))
+          : [
+              { min_gallons: 1, max_gallons: res.data.data.threshold_gallons, rate: res.data.data.base_rate },
+              { min_gallons: Number(res.data.data.threshold_gallons || 0) + 1, max_gallons: '', rate: res.data.data.threshold_rate }
+            ];
         setCommissionForm({
           base_rate: res.data.data.base_rate,
           threshold_gallons: res.data.data.threshold_gallons,
-          threshold_rate: res.data.data.threshold_rate
+          threshold_rate: res.data.data.threshold_rate,
+          tiers
         });
       } catch (err) {
         console.error('Gagal mengambil setting komisi:', err);
@@ -82,10 +97,22 @@ export default function Settings() {
       const payload = {
         base_rate: Number(commissionForm.base_rate),
         threshold_gallons: Number(commissionForm.threshold_gallons),
-        threshold_rate: Number(commissionForm.threshold_rate)
+        threshold_rate: Number(commissionForm.threshold_rate),
+        tiers: commissionForm.tiers.map(tier => ({
+          min_gallons: Number(tier.min_gallons),
+          max_gallons: tier.max_gallons === '' || tier.max_gallons === null ? null : Number(tier.max_gallons),
+          rate: Number(tier.rate)
+        }))
       };
       const res = await settingsApi.updateCommission(payload);
-      setCommissionForm(res.data.data);
+      setCommissionForm({
+        ...res.data.data,
+        tiers: res.data.data.tiers.map(tier => ({
+          min_gallons: tier.min_gallons,
+          max_gallons: tier.max_gallons ?? '',
+          rate: tier.rate
+        }))
+      });
       setSuccess('Pengaturan komisi kurir berhasil diperbarui');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -93,6 +120,34 @@ export default function Settings() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const updateCommissionTier = (index, field, value) => {
+    setCommissionForm(prev => ({
+      ...prev,
+      tiers: prev.tiers.map((tier, idx) => idx === index ? { ...tier, [field]: value } : tier)
+    }));
+  };
+
+  const addCommissionTier = () => {
+    setCommissionForm(prev => {
+      const last = prev.tiers[prev.tiers.length - 1] || { min_gallons: 1, max_gallons: 60, rate: 500 };
+      const nextMin = last.max_gallons ? Number(last.max_gallons) + 1 : Number(last.min_gallons || 0) + 1;
+      return {
+        ...prev,
+        tiers: [
+          ...prev.tiers,
+          { min_gallons: nextMin || 1, max_gallons: '', rate: last.rate || 0 }
+        ]
+      };
+    });
+  };
+
+  const removeCommissionTier = (index) => {
+    setCommissionForm(prev => ({
+      ...prev,
+      tiers: prev.tiers.length <= 1 ? prev.tiers : prev.tiers.filter((_, idx) => idx !== index)
+    }));
   };
 
   return (
@@ -177,46 +232,82 @@ export default function Settings() {
                 </div>
               ) : (
                 <form onSubmit={handleSaveCommission} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rate Normal / Galon</label>
-                      <input
-                        type="number"
-                        min="0"
-                        className="input h-14 text-sm font-black"
-                        value={commissionForm.base_rate}
-                        onChange={e => setCommissionForm({ ...commissionForm, base_rate: e.target.value })}
-                      />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-black text-gray-900 uppercase tracking-widest">Daftar Rate Komisi</p>
+                        <p className="text-[11px] font-bold text-gray-400 mt-1">Gunakan tanda + untuk menambah rate pengantaran.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addCommissionTier}
+                        className="h-11 w-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-600/20 hover:scale-105 transition-all"
+                        title="Tambah rate komisi"
+                      >
+                        <Plus size={20} />
+                      </button>
                     </div>
+
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Batas Galon</label>
-                      <input
-                        type="number"
-                        min="1"
-                        className="input h-14 text-sm font-black"
-                        value={commissionForm.threshold_gallons}
-                        onChange={e => setCommissionForm({ ...commissionForm, threshold_gallons: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Rate Di Atas Batas</label>
-                      <input
-                        type="number"
-                        min="0"
-                        className="input h-14 text-sm font-black"
-                        value={commissionForm.threshold_rate}
-                        onChange={e => setCommissionForm({ ...commissionForm, threshold_rate: e.target.value })}
-                      />
+                      {commissionForm.tiers.map((tier, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-3 items-end rounded-[1.5rem] border border-gray-100 bg-gray-50/50 p-4">
+                          <div className="col-span-3 space-y-2">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Dari</label>
+                            <input
+                              type="number"
+                              min="1"
+                              className="input h-12 text-sm font-black"
+                              value={tier.min_gallons}
+                              onChange={e => updateCommissionTier(index, 'min_gallons', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-3 space-y-2">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Sampai</label>
+                            <input
+                              type="number"
+                              min="1"
+                              className="input h-12 text-sm font-black"
+                              value={tier.max_gallons}
+                              onChange={e => updateCommissionTier(index, 'max_gallons', e.target.value)}
+                              placeholder="Tak terbatas"
+                            />
+                          </div>
+                          <div className="col-span-5 space-y-2">
+                            <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Rate / Galon</label>
+                            <input
+                              type="number"
+                              min="0"
+                              className="input h-12 text-sm font-black"
+                              value={tier.rate}
+                              onChange={e => updateCommissionTier(index, 'rate', e.target.value)}
+                            />
+                          </div>
+                          <div className="col-span-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => removeCommissionTier(index)}
+                              disabled={commissionForm.tiers.length <= 1}
+                              className="h-12 w-12 rounded-2xl bg-white text-gray-300 border border-gray-100 flex items-center justify-center hover:text-red-500 disabled:opacity-40"
+                              title="Hapus rate"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   <div className="p-5 rounded-[2rem] bg-emerald-50 border border-emerald-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
                       <p className="text-sm font-black text-emerald-900">Aturan aktif</p>
-                      <p className="text-xs font-bold text-emerald-700 mt-1">
-                        1-{commissionForm.threshold_gallons} galon: Rp{Number(commissionForm.base_rate || 0).toLocaleString('id-ID')}/galon.
-                        Di atas {commissionForm.threshold_gallons} galon: Rp{Number(commissionForm.threshold_rate || 0).toLocaleString('id-ID')}/galon.
-                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {commissionForm.tiers.map((tier, index) => (
+                          <span key={index} className="rounded-xl bg-white/70 px-3 py-1 text-[11px] font-black text-emerald-700">
+                            {tier.min_gallons}-{tier.max_gallons || '+'} galon: Rp{Number(tier.rate || 0).toLocaleString('id-ID')}/galon
+                          </span>
+                        ))}
+                      </div>
                     </div>
                     <button
                       type="submit"
