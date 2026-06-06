@@ -64,7 +64,8 @@ api.interceptors.response.use(
       });
     }
 
-    if (err.response?.status === 401) {
+    const isLoginRequest = err.config?.url === '/auth/login';
+    if (err.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('token');
       foundation.storage.remove('user');
       window.location.href = '/login';

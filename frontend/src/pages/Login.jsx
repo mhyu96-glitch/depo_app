@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   Droplets, Eye, EyeOff, Loader2, MapPin, 
-  ChevronDown, User, Lock 
+  ChevronDown, User, Lock, AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { foundation } from '../utils/foundation';
@@ -149,16 +149,6 @@ export default function Login() {
           
           <h2 className="text-2xl font-black text-white mb-8 tracking-tight">Masuk ke Akun</h2>
 
-          {error && (
-            <motion.div 
-              initial={{ x: -10, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              className="mb-6 px-5 py-4 rounded-2xl bg-red-500/20 border border-red-400/30 text-red-200 text-xs font-bold leading-relaxed"
-            >
-              {error}
-            </motion.div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Custom Pill Branch Selector */}
             <div className="form-group relative z-[50]">
@@ -295,6 +285,45 @@ export default function Login() {
           </div>
         </motion.div>
       </div>
+
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="login-error-title"
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className="w-full max-w-sm rounded-3xl border border-red-200 bg-white p-6 text-center shadow-2xl"
+            >
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+                <AlertTriangle size={28} />
+              </div>
+              <h3 id="login-error-title" className="mb-2 text-lg font-black text-slate-900">
+                Login gagal
+              </h3>
+              <p className="mb-6 text-sm font-semibold leading-relaxed text-slate-600">
+                {error}
+              </p>
+              <button
+                type="button"
+                onClick={() => setError('')}
+                className="h-12 w-full rounded-2xl bg-primary-600 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-primary-600/20 transition hover:bg-primary-700 active:scale-95"
+                autoFocus
+              >
+                Coba Lagi
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
